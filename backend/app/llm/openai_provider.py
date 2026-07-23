@@ -3,6 +3,7 @@ import urllib.error
 import urllib.request
 
 from app.core.config import settings
+from app.core.errors import LLMConfigError, LLMProviderError
 from app.llm.base import ChatMessage, LLMResponse
 
 
@@ -11,7 +12,7 @@ class OpenAIProvider:
 
     def chat(self, messages: list[ChatMessage]) -> LLMResponse:
         if not settings.openai_api_key:
-            raise RuntimeError("OPENAI_API_KEY is not configured")
+            raise LLMConfigError("OPENAI_API_KEY is not configured")
 
         payload = {
             "model": settings.llm_model,
@@ -32,12 +33,20 @@ class OpenAIProvider:
         )
 
         try:
-            with urllib.request.urlopen(request, timeout=30) as response:
+            with urllib.request.urlopen(
+                request, timeout=settings.llm_timeout_seconds
+            ) as response:
                 result = json.loads(response.read().decode("utf-8"))
         except urllib.error.URLError as exc:
-            raise RuntimeError(f"OpenAI request failed: {exc}") from exc
+            raise LLMProviderError(f"OpenAI request failed: {exc}") from exc
+        except json.JSONDecodeError as exc:
+            raise LLMProviderError("OpenAI response is not valid JSON") from exc
 
-        choice = result["choices"][0]["message"]
+        try:
+            choice = result["choices"][0]["message"]
+        except (KeyError, IndexError, TypeError) as exc:
+            raise LLMProviderError("OpenAI response format is invalid") from exc
+
         usage = result.get("usage", {})
         return LLMResponse(
             content=choice.get("content", ""),

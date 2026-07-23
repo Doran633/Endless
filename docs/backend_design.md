@@ -1,93 +1,149 @@
 # Backend 设计
 
-> 本文档用于指导后端工程初始化和后续 MVP 开发。
-> 目标是在保持 MVP 简单的前提下，为 OpenAI API、Embedding、Vector Database、Agent Workflow 预留清晰扩展边界。
-> 所有与本文冲突的 MVP 范围决策，以 `mvp_decision.md` 为准。
+> 本文档用于指导独立网页版 AI 助手 MVP 的后端开发。
+> 当前保持单体后端，不引入复杂微服务。
+> 后端继续遵循 `api -> service -> repository` 的工程分层思想。
 
 ## 1. 设计目标
 
-后端一期目标是跑通企业内部 AI 助手的最小业务闭环：
+后端 v1.0 目标是跑通独立网页版 AI 助手的核心业务闭环：
 
 ```text
-钉钉登录
-  -> 单文件上传
-  -> 单文件解析
-  -> 单文件 RAG 问答
-  -> PPT 生成任务
-  -> PPT 下载
+AI 聊天
+  -> 文件上传
+  -> 文档解析
+  -> 单文件 RAG 知识问答
 ```
+
+AI 数据分析是规划能力，当前先保留模块边界，不作为核心 MVP 闭环的前置条件。
 
 设计原则：
 
 - 采用单体后端，不拆微服务。
-- 分层清晰：API 层只处理 HTTP，Service 层编排业务，Repository 层访问数据。
-- 真实复杂度集中在后端，但一期只实现必须能力。
-- LLM、Embedding、Parser、Storage、Vector Search、Workflow 都保留接口边界。
-- 一期不做多模型 UI、多文件知识库、Celery、MinIO、SSE、复杂 Agent。
+- API 层只处理 HTTP、参数校验和统一响应。
+- Service 层负责编排业务流程。
+- Repository 层负责数据访问和持久化边界。
+- LLM、Embedding、Parser、Storage、Vector Store、Data Analysis 都保留接口边界。
+- 不提前引入企业登录、企业权限、多租户、PPT 生成、复杂任务队列或开放式 Agent。
 
-## 2. Backend 目录结构
+## 2. Implementation Status
 
-建议后端目录：
+本节记录当前后端实现状态，用于区分已经落地的代码、v1.0 计划模块和后续扩展模块。
+
+### 2.1 Implemented
+
+当前已经实现：
+
+- Chat API。
+- LLM Provider。
+
+已落地代码：
+
+- `backend/app/main.py`：FastAPI 应用入口，注册健康检查和聊天路由。
+- `backend/app/api/v1/health.py`：健康检查接口。
+- `backend/app/api/v1/chat.py`：基础聊天接口。
+- `backend/app/schemas/chat.py`：聊天请求和响应 Schema。
+- `backend/app/services/chat_service.py`：基础聊天业务编排。
+- `backend/app/services/llm_service.py`：LLM Provider 选择入口。
+- `backend/app/llm/base.py`：LLM Provider 抽象。
+- `backend/app/llm/mock_provider.py`：本地 Mock Provider。
+- `backend/app/llm/openai_provider.py`：OpenAI-compatible Provider。
+- `backend/app/core/config.py`：LLM 配置读取。
+- `backend/app/core/responses.py`：统一成功响应。
+
+当前限制：
+
+- 前端尚未接入后端聊天接口。
+- Chat API 当前只支持普通聊天，尚未接入文件、会话持久化和 RAG。
+- LLM Provider 已有抽象，但错误处理、timeout、metadata 和 provider registry 仍需完善。
+
+### 2.2 Planned
+
+v1.0 主链路计划实现：
+
+- File Service。
+- Parser Service。
+- Embedding Provider。
+- Vector Store。
+- RAG Service。
+- Repository Layer。
+- Minimal Tests。
+
+规划能力：
+
+- Data Analysis Service。
+
+说明：
+
+- File Service 用于支撑文件上传、文件状态、原始文件存储和后续文档解析。
+- RAG 用于支撑单文件知识问答，是当前 v1.0 的核心目标之一。
+- Data Analysis Service 先保留模块边界，后续启动时再定义最小闭环。
+
+### 2.3 Future
+
+后续扩展模块：
+
+- Auth。
+- Agent Workflow。
+- PPT。
+- 企业权限。
+- 多租户。
+
+说明：
+
+- Auth 当前不作为独立网页版 AI 助手 v1.0 的必须能力。
+- Agent Workflow 当前暂不实现，后续应从确定性 WorkflowService 演进。
+- PPT 当前暂缓，不应挤占 Chat、File、Parser、RAG 主链路。
+- Future 模块不应影响当前 v1.0 的接口和数据模型收敛。
+
+## 3. Backend 目录结构
+
+建议在当前 `backend/` 基础上演进：
 
 ```text
 backend/
-  pyproject.toml
-  alembic.ini
+  requirements.txt
   app/
     main.py
     api/
       deps.py
       v1/
-        auth.py
-        files.py
         chat.py
-        ppt.py
+        files.py
         health.py
     core/
       config.py
-      database.py
-      security.py
       responses.py
-      exceptions.py
+      errors.py
+      exception_handlers.py
       logging.py
-    models/
-      user.py
-      file.py
-      file_chunk.py
-      chat.py
-      ppt_job.py
     schemas/
-      common.py
-      auth.py
-      file.py
       chat.py
-      ppt.py
+      file.py
+      rag.py
+      data_analysis.py
     repositories/
-      user_repository.py
       file_repository.py
-      file_chunk_repository.py
+      chunk_repository.py
       chat_repository.py
-      ppt_job_repository.py
     services/
-      auth_service.py
+      chat_service.py
+      llm_service.py
       file_service.py
       parser_service.py
       embedding_service.py
       rag_service.py
-      chat_service.py
-      ppt_service.py
-      workflow_service.py
+      data_analysis_service.py  # 规划能力，当前暂不实现
     llm/
       base.py
-      claude_provider.py
+      mock_provider.py
       openai_provider.py
     embedding/
       base.py
-      bge_m3_client.py
-      openai_embedding_client.py
+      provider.py
     vector_store/
       base.py
-      pgvector_store.py
+      store.py
     parsers/
       base.py
       txt_parser.py
@@ -96,49 +152,32 @@ backend/
     storage/
       base.py
       local_storage.py
-    ppt/
-      generator.py
-      template.py
-    tasks/
-      file_tasks.py
-      ppt_tasks.py
-  alembic/
-    versions/
   tests/
   uploads/
-  ppt_outputs/
 ```
 
 目录职责：
 
 - `api/`：路由、依赖注入、请求参数校验、统一响应。
-- `core/`：配置、数据库连接、安全工具、异常、日志、响应包装。
-- `models/`：SQLAlchemy ORM 模型。
+- `core/`：配置、异常、日志、响应包装。
 - `schemas/`：Pydantic 请求和响应模型。
-- `repositories/`：数据库查询与持久化，不写业务流程。
+- `repositories/`：数据查询与持久化边界，不写业务流程。
 - `services/`：业务编排，是后端核心。
-- `llm/`：LLM Provider 抽象，先实现 Claude，预留 OpenAI。
-- `embedding/`：Embedding Provider 抽象，先实现 BGE-M3，预留 OpenAI Embedding。
-- `vector_store/`：向量检索抽象，先实现 pgvector，预留外部 Vector DB。
-- `parsers/`：文档解析抽象，首期支持 TXT/PDF/DOCX。
+- `llm/`：LLM Provider 抽象和具体实现。
+- `embedding/`：Embedding Provider 抽象。
+- `vector_store/`：向量检索抽象。
+- `parsers/`：文档解析抽象。
 - `storage/`：文件存储抽象，先实现本地文件系统。
-- `ppt/`：PPT 文件生成逻辑。
-- `tasks/`：BackgroundTasks 的实际任务函数。
 
-## 3. API 接口设计
+## 4. API 接口设计
 
-### 3.1 API 通用规范
+### 4.1 API 通用规范
 
 路径规范：
 
 - 业务 API 统一使用 `/api/v1` 前缀。
 - 健康检查使用 `GET /health`。
-
-认证规范：
-
-- 登录接口除外，所有业务接口默认需要 JWT。
-- 后端通过 `get_current_user` 依赖注入当前用户。
-- 所有查询必须按 `user_id` 做数据隔离。
+- 当前 `/chat` 是临时兼容路径，正式业务路径优先使用 `/api/v1/chat`。
 
 统一成功响应：
 
@@ -160,533 +199,249 @@ backend/
 }
 ```
 
-错误码：
+错误码建议：
 
 - `40xxx`：通用错误。
-- `41xxx`：认证错误。
 - `42xxx`：文件错误。
 - `43xxx`：聊天错误。
-- `44xxx`：PPT 错误。
+- `45xxx`：RAG 错误。
+- `46xxx`：数据分析错误。
 
-### 3.2 Health
+### 4.2 Health API
 
 `GET /health`
-
-响应：
-
-```json
-{
-  "status": "ok"
-}
-```
 
 用途：
 
 - 本地开发检查。
-- Docker 健康检查。
 - 前端代理连通性检查。
+- 部署健康检查。
 
-### 3.3 Auth API
+### 4.3 Chat API
 
-`POST /api/v1/auth/dingtalk/login`
+当前已实现：
 
-请求：
+- `POST /chat`
+- `POST /api/v1/chat`
+
+当前请求：
 
 ```json
 {
-  "auth_code": "string"
+  "message": "string"
 }
 ```
 
-响应：
+当前响应：
 
 ```json
 {
   "code": 0,
   "message": "ok",
   "data": {
-    "access_token": "string",
-    "refresh_token": "string",
-    "token_type": "bearer",
-    "expires_in": 86400,
-    "user": {
-      "id": "uuid",
-      "name": "string",
-      "avatar_url": "string"
-    }
+    "answer": "string"
   }
 }
 ```
 
-`GET /api/v1/auth/me`
-
-响应：
+后续 RAG 扩展建议：
 
 ```json
 {
-  "code": 0,
-  "message": "ok",
-  "data": {
-    "id": "uuid",
-    "name": "string",
-    "avatar_url": "string"
-  }
-}
-```
-
-`POST /api/v1/auth/refresh`
-
-请求：
-
-```json
-{
-  "refresh_token": "string"
-}
-```
-
-说明：
-
-- `access_token` 有效期 24 小时。
-- `refresh_token` 有效期 7 天。
-- 一期不做密码注册和手机号登录。
-- 如果钉钉联调受阻，可以临时加 dev mock 登录，但不要改变正式接口形状。
-
-### 3.4 Files API
-
-`POST /api/v1/files`
-
-请求：
-
-- `multipart/form-data`
-- 字段：`file`
-
-响应：
-
-```json
-{
-  "code": 0,
-  "message": "ok",
-  "data": {
-    "id": "uuid",
-    "original_name": "string",
-    "status": "uploaded"
-  }
-}
-```
-
-`GET /api/v1/files`
-
-响应：
-
-```json
-{
-  "code": 0,
-  "message": "ok",
-  "data": {
-    "items": [
-      {
-        "id": "uuid",
-        "original_name": "string",
-        "status": "ready",
-        "size_bytes": 12345,
-        "extension": "pdf",
-        "created_at": "2026-07-22T00:00:00Z"
-      }
-    ],
-    "total": 1,
-    "page": 1,
-    "page_size": 20
-  }
-}
-```
-
-`GET /api/v1/files/{file_id}`
-
-用途：
-
-- 查询文件详情。
-- 前端轮询解析状态。
-- 只能查询当前用户自己的文件。
-
-`DELETE /api/v1/files/{file_id}`
-
-行为：
-
-- 删除当前用户自己的文件。
-- 同步删除关联 `file_chunks`。
-- 同步删除关联 PPT 产物。
-- 聊天消息内容保留，但关联文件不再可用。
-
-文件限制：
-
-- 一期支持 TXT、PDF、DOCX。
-- 单文件最大 20 MB。
-- 上传后异步解析：uploaded -> processing -> ready / failed。
-
-### 3.5 Chat API
-
-`POST /api/v1/chat/sessions`
-
-创建普通会话：
-
-```json
-{
-  "mode": "general",
-  "file_id": null
-}
-```
-
-创建文件问答会话：
-
-```json
-{
-  "mode": "file",
-  "file_id": "uuid"
-}
-```
-
-约束：
-
-- `mode=file` 时 `file_id` 必填。
-- 文件必须属于当前用户。
-- 文件状态必须为 `ready`。
-- 一期一个会话最多绑定一个文件。
-
-`GET /api/v1/chat/sessions`
-
-用途：
-
-- 查询当前用户会话列表。
-
-`GET /api/v1/chat/sessions/{session_id}/messages`
-
-用途：
-
-- 查询当前用户某个会话的消息。
-
-`POST /api/v1/chat/sessions/{session_id}/messages`
-
-请求：
-
-```json
-{
-  "content": "string"
-}
-```
-
-响应：
-
-```json
-{
-  "code": 0,
-  "message": "ok",
-  "data": {
-    "user_message": {
-      "id": "uuid",
-      "role": "user",
-      "content": "string"
-    },
-    "assistant_message": {
-      "id": "uuid",
-      "role": "assistant",
-      "content": "string",
-      "metadata": {
-        "chunk_ids": ["uuid"],
-        "token_count": 100
-      }
-    }
-  }
-}
-```
-
-说明：
-
-- 普通会话直接调用 LLM。
-- 文件会话先执行 RAG 检索，再调用 LLM。
-- 一期不支持 SSE，接口返回完整回答。
-
-### 3.6 PPT API
-
-`POST /api/v1/ppt/jobs`
-
-请求：
-
-```json
-{
+  "message": "string",
   "file_id": "uuid",
-  "title": "string",
-  "topic": "string"
+  "mode": "general"
 }
 ```
 
-响应：
+说明：
 
-```json
-{
-  "code": 0,
-  "message": "ok",
-  "data": {
-    "job_id": "uuid",
-    "status": "pending"
-  }
-}
+- 没有 `file_id` 时走普通聊天。
+- 有 `file_id` 时由 Chat Service 调用 RAG Service。
+- v1.0 先返回完整回答，不引入 SSE/WebSocket。
+
+### 4.4 Files API
+
+计划接口：
+
+- `POST /api/v1/files`
+- `GET /api/v1/files`
+- `GET /api/v1/files/{file_id}`
+- `DELETE /api/v1/files/{file_id}`
+
+职责：
+
+- 上传文件。
+- 查询文件列表。
+- 查询文件解析状态。
+- 删除文件及其关联 chunks。
+
+文件范围：
+
+- TXT：必须支持。
+- PDF：建议支持。
+- DOCX：根据进度实现。
+
+### 4.5 RAG API
+
+RAG 可以先复用 Chat API 的扩展字段，不必立即增加独立复杂接口。
+
+推荐入口：
+
+```text
+POST /api/v1/chat
+  message + file_id
+```
+
+后续如果 RAG 逻辑复杂，再拆分：
+
+```text
+POST /api/v1/rag/query
 ```
 
 约束：
 
-- `file_id` 必须属于当前用户。
-- 文件状态必须为 `ready`。
-- `title` 必填。
-- `topic` 选填。
+- v1.0 优先单文件问答。
+- 检索范围限定在当前 `file_id`。
+- 不做全局知识库。
+- 不做多文件联合问答。
 
-`GET /api/v1/ppt/jobs`
+### 4.6 Data Analysis API
 
-用途：
+Data Analysis 是规划能力，当前暂不实现。
 
-- 查询当前用户 PPT 任务列表。
+后续可规划接口：
 
-`GET /api/v1/ppt/jobs/{job_id}`
-
-响应：
-
-```json
-{
-  "code": 0,
-  "message": "ok",
-  "data": {
-    "id": "uuid",
-    "status": "running",
-    "progress": 50,
-    "error_message": null
-  }
-}
-```
-
-`GET /api/v1/ppt/jobs/{job_id}/download`
+- `POST /api/v1/data/files`
+- `GET /api/v1/data/files/{file_id}/summary`
+- `POST /api/v1/data/files/{file_id}/analyze`
+- `POST /api/v1/data/files/{file_id}/charts`
 
 约束：
 
-- 任务必须属于当前用户。
-- 任务状态必须为 `succeeded`。
-- 不暴露内部 `output_path`。
+- 不进入当前核心 MVP 验收。
+- 不引入独立微服务。
+- 分析结果必须来自程序计算，LLM 只负责解释。
 
-## 4. 数据模型设计
+## 5. 数据模型设计
 
-### 4.1 通用规范
+当前代码尚未实现数据库、ORM 和迁移。
 
-- 主键：UUID。
-- 时间字段：`TIMESTAMPTZ`。
-- Python 时间：`datetime.now(timezone.utc)`。
-- 扩展字段：统一命名 `metadata`，数据库类型 JSONB。
-- 一期删除策略：物理删除。
-- 一期不创建审计日志表。
+v1.0 最小数据模型建议：
 
-### 4.2 `users`
+### 5.1 `files`
 
 职责：
 
-- 保存本地用户。
-- 保存钉钉身份映射。
-
-核心字段：
-
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| id | UUID PK | 本地用户 ID |
-| corp_id | VARCHAR | 钉钉企业 ID |
-| dingtalk_user_id | VARCHAR | 钉钉用户 ID |
-| union_id | VARCHAR NULL | 钉钉 union id |
-| name | VARCHAR | 用户姓名 |
-| avatar_url | TEXT NULL | 头像 |
-| department_ids | JSONB NULL | 部门 ID |
-| metadata | JSONB | 钉钉扩展信息 |
-| created_at | TIMESTAMPTZ | 创建时间 |
-| updated_at | TIMESTAMPTZ | 更新时间 |
-
-索引：
-
-- `(corp_id, dingtalk_user_id)` 唯一索引。
-- `created_at DESC`。
-
-### 4.3 `files`
-
-职责：
-
-- 保存用户上传文件元数据。
+- 保存上传文件元数据。
 - 跟踪解析状态。
 
-核心字段：
+建议字段：
 
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| id | UUID PK | 文件 ID |
-| user_id | UUID FK | 上传用户 |
-| original_name | VARCHAR | 原始文件名 |
-| storage_path | TEXT | 内部存储路径 |
-| mime_type | VARCHAR NULL | MIME 类型 |
-| extension | VARCHAR | 扩展名 |
-| size_bytes | BIGINT | 文件大小 |
-| status | VARCHAR | uploaded / processing / ready / failed |
-| parse_error | TEXT NULL | 解析失败原因 |
-| metadata | JSONB | 页数、解析统计等 |
-| created_at | TIMESTAMPTZ | 创建时间 |
-| updated_at | TIMESTAMPTZ | 更新时间 |
+- `id`
+- `original_name`
+- `storage_path`
+- `mime_type`
+- `extension`
+- `size_bytes`
+- `status`
+- `parse_error`
+- `metadata`
+- `created_at`
+- `updated_at`
 
-索引：
-
-- `user_id`。
-- `status`。
-- `created_at DESC`。
-
-### 4.4 `file_chunks`
+### 5.2 `document_chunks`
 
 职责：
 
 - 保存切分后的文本 chunk。
-- 保存 embedding。
+- 保存 embedding 或向量索引引用。
 - 支撑单文件 RAG 检索。
 
-核心字段：
+建议字段：
 
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| id | UUID PK | chunk ID |
-| file_id | UUID FK | 所属文件 |
-| user_id | UUID FK | 冗余用户 ID，用于权限过滤 |
-| chunk_index | INTEGER | chunk 顺序 |
-| content | TEXT | chunk 文本 |
-| embedding | VECTOR(1024) | BGE-M3 dense vector |
-| token_count | INTEGER NULL | token 数 |
-| metadata | JSONB | 页码、段落等来源信息 |
-| created_at | TIMESTAMPTZ | 创建时间 |
-| updated_at | TIMESTAMPTZ | 更新时间 |
+- `id`
+- `file_id`
+- `chunk_index`
+- `content`
+- `embedding`
+- `token_count`
+- `metadata`
+- `created_at`
 
-索引：
-
-- `file_id`。
-- `user_id`。
-- `(file_id, chunk_index)` 唯一索引。
-- `embedding` 使用 ivfflat，lists=100。
-
-说明：
-
-- 以 `mvp_decision.md` 为准，embedding 维度为 BGE-M3 的 1024。
-- 未来接 OpenAI Embedding 或外部 Vector DB 时，通过 `EmbeddingProvider` 和 `VectorStore` 抽象替换，不直接改 ChatService。
-
-### 4.5 `chat_sessions`
+### 5.3 `chat_sessions`
 
 职责：
 
 - 保存会话。
-- 区分普通对话和文件问答。
+- 区分普通聊天和文件问答。
 
-核心字段：
+当前 v1.0 可以根据实现节奏决定是否立即持久化会话。
 
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| id | UUID PK | 会话 ID |
-| user_id | UUID FK | 所属用户 |
-| file_id | UUID FK NULL | 文件问答绑定文件 |
-| title | VARCHAR | 会话标题 |
-| mode | VARCHAR | general / file |
-| metadata | JSONB | 扩展信息 |
-| created_at | TIMESTAMPTZ | 创建时间 |
-| updated_at | TIMESTAMPTZ | 更新时间 |
-
-约束：
-
-- `mode=file` 时必须有 `file_id`。
-- 一期不支持一个会话绑定多个文件。
-
-### 4.6 `chat_messages`
+### 5.4 `chat_messages`
 
 职责：
 
 - 保存用户与助手消息。
-- 保存 RAG 引用和 token 用量。
+- 保存 RAG 引用、模型和 token metadata。
 
-核心字段：
+当前 v1.0 可以先完成无持久化聊天，再逐步接入。
 
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| id | UUID PK | 消息 ID |
-| session_id | UUID FK | 会话 ID |
-| user_id | UUID FK | 所属用户 |
-| role | VARCHAR | user / assistant / system |
-| content | TEXT | 消息内容 |
-| metadata | JSONB | chunk_ids、token_count、model 等 |
-| created_at | TIMESTAMPTZ | 创建时间 |
-| updated_at | TIMESTAMPTZ | 更新时间 |
+### 5.5 `data_files`
 
-### 4.7 `ppt_jobs`
+Data Analysis 规划模型，当前暂不实现。
 
 职责：
 
-- 保存 PPT 生成任务。
-- 支撑状态轮询和下载。
+- 保存结构化数据文件元数据。
+- 保存字段识别结果和数据摘要。
 
-核心字段：
+## 6. Service 层划分
 
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| id | UUID PK | 任务 ID |
-| user_id | UUID FK | 所属用户 |
-| file_id | UUID FK | 来源文件 |
-| status | VARCHAR | pending / running / succeeded / failed |
-| progress | INTEGER | 0-100 |
-| title | VARCHAR | PPT 标题 |
-| topic | TEXT NULL | 用户主题要求 |
-| output_path | TEXT NULL | 内部输出路径 |
-| error_message | TEXT NULL | 失败原因 |
-| retry_count | INTEGER | 已重试次数 |
-| metadata | JSONB | 页数、模板、LLM 输出摘要 |
-| created_at | TIMESTAMPTZ | 创建时间 |
-| updated_at | TIMESTAMPTZ | 更新时间 |
-
-约束：
-
-- 任务必须属于当前用户。
-- 来源文件必须属于当前用户且状态为 `ready`。
-- 失败最多重试 1 次。
-
-## 5. Service 层划分
-
-### 5.1 `AuthService`
+### 6.1 `ChatService`
 
 职责：
 
-- 处理钉钉 auth code。
-- 调用钉钉 API 获取用户信息。
-- 创建或更新本地用户。
-- 签发 access token / refresh token。
-- 获取当前用户信息。
+- 编排普通聊天。
+- 后续根据 `file_id` 分流到 RAG Service。
+- 调用 LLM Service 生成回答。
 
-依赖：
+当前状态：
 
-- `UserRepository`
-- `security.py`
-- Dingtalk client
+- 已实现基础普通聊天。
 
-### 5.2 `FileService`
+### 6.2 `LLMService`
+
+职责：
+
+- 根据配置选择 LLM Provider。
+- 对 Service 层屏蔽具体模型调用细节。
+
+当前状态：
+
+- 已实现 Mock Provider 和 OpenAI-compatible Provider。
+
+后续需要：
+
+- Provider registry。
+- timeout。
+- 统一错误处理。
+- request metadata。
+
+### 6.3 `FileService`
 
 职责：
 
 - 校验文件格式和大小。
 - 调用 Storage 保存原始文件。
-- 创建 `files` 记录。
-- 触发后台解析任务。
-- 查询文件列表和详情。
-- 删除文件、chunks 和 PPT 产物。
+- 记录文件状态。
+- 触发或调用 Parser Service。
 
-依赖：
+当前状态：
 
-- `FileRepository`
-- `FileChunkRepository`
-- `PptJobRepository`
-- `LocalStorage`
-- BackgroundTasks
+- Planned。
 
-### 5.3 `ParserService`
+### 6.4 `ParserService`
 
 职责：
 
@@ -694,322 +449,155 @@ backend/
 - 输出统一文本结果。
 - 处理解析失败。
 
-依赖：
+当前状态：
 
-- `TxtParser`
-- `PdfParser`
-- `DocxParser`
+- Planned。
 
-输出建议：
-
-```text
-ParsedDocument
-  text: string
-  metadata: dict
-```
-
-### 5.4 `EmbeddingService`
+### 6.5 `EmbeddingService`
 
 职责：
 
-- 对 chunk 批量生成 embedding。
+- 对 chunks 和 query 生成 embedding。
 - 屏蔽具体 embedding provider。
-- 一期调用本地 BGE-M3。
-- 未来可切换 OpenAI Embedding。
 
-依赖：
+当前状态：
 
-- `EmbeddingProvider`
+- Planned。
 
-### 5.5 `RagService`
+### 6.6 `RagService`
 
 职责：
 
-- 对文件文本做 chunk 切分。
-- 调用 `EmbeddingService`。
-- 写入 `file_chunks`。
+- 对文档文本做 chunk 切分。
+- 写入向量存储。
 - 根据问题检索相关 chunks。
 - 组装 LLM 上下文。
 
-依赖：
+当前状态：
 
-- `FileChunkRepository`
-- `EmbeddingService`
-- `VectorStore`
+- Planned。
 
 关键约束：
 
-- 检索必须带 `user_id` 和 `file_id`。
-- 一期不做全局知识库。
+- v1.0 检索必须限定在单个 `file_id`。
+- 不做全局知识库。
 
-### 5.6 `ChatService`
-
-职责：
-
-- 创建普通会话和文件问答会话。
-- 保存用户消息。
-- 普通会话直接调用 LLM。
-- 文件会话调用 `RagService` 获取上下文后再调用 LLM。
-- 保存助手消息。
-- 返回消息结果。
-
-依赖：
-
-- `ChatRepository`
-- `FileRepository`
-- `RagService`
-- `LLMProvider`
-
-### 5.7 `PptService`
+### 6.7 `DataAnalysisService`
 
 职责：
 
-- 创建 PPT 任务。
-- 校验文件归属和状态。
-- 查询任务状态。
-- 下载生成结果。
-- 调用后台任务生成 PPT。
+- 接收结构化数据。
+- 执行基础统计和聚合分析。
+- 生成图表数据。
+- 调用 LLM Service 输出自然语言解释。
 
-依赖：
+当前状态：
 
-- `PptJobRepository`
-- `FileRepository`
-- `WorkflowService`
-- `LocalStorage`
+- Planned as capability boundary。
+- 当前暂不实现。
 
-### 5.8 `WorkflowService`
+约束：
+
+- 计算结果必须来自程序逻辑。
+- LLM 只负责解释和总结。
+
+### 6.8 `WorkflowService`
 
 职责：
 
-- 编排固定工作流。
-- 一期主要服务 PPT 生成。
-- 为未来 Agent Workflow 预留步骤状态和工具边界。
+- 后续承接确定性多步骤任务。
+- 为 Agent Workflow 预留演进位置。
 
-一期流程：
+当前状态：
 
-```text
-读取文件内容
-  -> 生成摘要
-  -> 生成 PPT 大纲
-  -> 生成页面 JSON
-  -> 调用 PPTGenerator
-  -> 保存文件
-  -> 更新任务状态
-```
+- Future。
+- 不进入当前 v1.0。
 
-说明：
+## 7. LLM 调用抽象方式
 
-- 一期不实现开放式 Agent。
-- 不让 LLM 自主选择任意工具。
-- Agent 扩展从这个服务演进，而不是从 API 层硬编码。
+LLM 抽象目标：
 
-## 6. LLM 调用抽象方式
-
-### 6.1 抽象目标
-
-LLM 抽象要满足：
-
-- 一期只接 Claude API。
-- 未来可接 OpenAI API。
 - ChatService 不关心具体模型 SDK。
-- 统一处理 timeout、retry、token usage、错误。
-
-### 6.2 Provider 接口
+- RAG 和 Data Analysis 后续复用同一 LLMService。
+- 统一处理 timeout、错误、模型参数和 metadata。
 
 建议接口语义：
 
 ```text
 LLMProvider
-  chat(messages, model, temperature, max_tokens) -> LLMResponse
+  chat(messages, model, temperature, max_tokens, metadata) -> LLMResponse
 ```
 
-输入：
+当前已实现：
 
-- `messages`：标准消息数组。
-- `model`：环境变量配置。
-- `temperature`：调用参数。
-- `max_tokens`：最大输出长度。
-
-输出：
-
-```text
-LLMResponse
-  content: string
-  model: string
-  input_tokens: int | null
-  output_tokens: int | null
-  raw: dict | null
-```
-
-### 6.3 Provider 实现
-
-一期启用：
-
-- `ClaudeProvider`
-
-预留但不默认启用：
-
+- `MockLLMProvider`
 - `OpenAIProvider`
 
-配置建议：
+后续建议：
 
-```text
-LLM_PROVIDER=claude
-LLM_MODEL=claude-sonnet-5
-ANTHROPIC_API_KEY=...
-ANTHROPIC_BASE_URL=...
-OPENAI_API_KEY=...
-OPENAI_BASE_URL=...
-```
+- 未知 provider 应快速失败。
+- 不在前端做复杂模型切换 UI。
+- 不在测试中真实调用外部 LLM。
 
-说明：
+## 8. 文件处理流程
 
-- 一期不做前端模型选择。
-- Provider 选择只通过后端环境变量。
-- OpenAI Provider 可先保留文件位置和接口设计，实际实现可以后置。
-
-## 7. 文件处理流程
-
-### 7.1 上传流程
+### 8.1 上传流程
 
 ```text
 POST /api/v1/files
-  -> API 校验登录态
+  -> File API
   -> FileService 校验格式和大小
   -> Storage 保存原始文件
-  -> FileRepository 创建 files 记录(status=uploaded)
-  -> BackgroundTasks 添加 parse_file_task
-  -> 返回 file_id
-```
-
-### 7.2 解析流程
-
-```text
-parse_file_task(file_id)
-  -> files.status = processing
-  -> Storage 读取文件
+  -> Repository 记录文件状态
   -> ParserService 解析文本
+  -> 返回 file_id 和 status
+```
+
+### 8.2 RAG 索引流程
+
+```text
+ParserService 输出文本
   -> RagService chunk 切分
-  -> EmbeddingService 批量生成向量
-  -> FileChunkRepository 写入 chunks
-  -> files.status = ready
+  -> EmbeddingService 生成向量
+  -> VectorStore 写入 chunks
+  -> 文件状态更新为 ready
 ```
 
-失败处理：
+### 8.3 RAG 问答流程
 
 ```text
-解析失败
-  -> files.status = failed
-  -> files.parse_error = error message
-  -> 日志记录异常
+POST /api/v1/chat(message, file_id)
+  -> ChatService
+  -> RagService 检索 chunks
+  -> ChatService 组装上下文
+  -> LLMService
+  -> LLMProvider
+  -> 返回 answer 和 citations
 ```
 
-### 7.3 删除流程
+## 9. RAG 接入位置
 
-```text
-DELETE /api/v1/files/{file_id}
-  -> 校验文件属于当前用户
-  -> 删除 file_chunks
-  -> 删除关联 PPT 输出文件
-  -> 删除 ppt_jobs 或标记不可下载
-  -> 删除原始文件
-  -> 删除 files 记录
-```
-
-一期采用物理删除。
-
-### 7.4 安全边界
-
-- 不向前端返回 `storage_path` 或 `output_path`。
-- 所有文件操作必须校验 `user_id`。
-- 日志中不要输出完整文件内容。
-- 不支持格式直接返回明确错误。
-- 超过 20 MB 直接拒绝。
-
-## 8. RAG 未来接入位置
-
-### 8.1 一期 RAG 位置
-
-一期 RAG 在后端内部实现，入口在：
+RAG 在后端内部实现，入口在：
 
 ```text
 ChatService
   -> RagService
+  -> EmbeddingService
   -> VectorStore
-  -> LLMProvider
+  -> LLMService
 ```
-
-数据写入入口在：
-
-```text
-FileService
-  -> parse_file_task
-  -> ParserService
-  -> RagService.index_file()
-```
-
-### 8.2 VectorStore 抽象
-
-建议接口语义：
-
-```text
-VectorStore
-  upsert_chunks(file_id, user_id, chunks)
-  search(file_id, user_id, query_embedding, top_k) -> list[ChunkMatch]
-  delete_by_file(file_id, user_id)
-```
-
-一期实现：
-
-- `PgVectorStore`
-
-未来可替换：
-
-- Milvus
-- Qdrant
-- Weaviate
-- Pinecone
-- Elasticsearch vector search
 
 关键要求：
 
-- `ChatService` 不直接写 pgvector SQL。
-- `RagService` 只依赖 `VectorStore` 接口。
-- 外部 Vector Database 接入时不改变 API 接口。
+- ChatService 不直接写向量检索逻辑。
+- RagService 不直接处理 HTTP。
+- VectorStore 屏蔽具体向量存储。
+- EmbeddingProvider 屏蔽具体 embedding 模型。
+- 外部 Vector Database 接入时不改变前端 API。
 
-### 8.3 EmbeddingProvider 抽象
+## 10. Agent Workflow 预留方式
 
-建议接口语义：
-
-```text
-EmbeddingProvider
-  embed_texts(texts) -> list[list[float]]
-  embed_query(text) -> list[float]
-```
-
-一期实现：
-
-- `BgeM3EmbeddingProvider`
-
-未来可替换：
-
-- `OpenAIEmbeddingProvider`
-- Qwen embedding
-- DeepSeek embedding
-- 企业内部 embedding 服务
-
-注意：
-
-- 不同 embedding 模型维度不同。
-- 一期数据库字段固定为 `VECTOR(1024)`。
-- 未来切换模型时需要 migration 或新增 embedding profile 机制。
-- MVP 不提前设计多 embedding profile，只保留 Provider 接口。
-
-## 9. Agent Workflow 预留方式
-
-### 9.1 MVP 不做复杂 Agent
-
-一期不要直接引入复杂 Agent 框架。
+当前不做复杂 Agent。
 
 不做：
 
@@ -1019,85 +607,58 @@ EmbeddingProvider
 - Agent 记忆系统。
 - 可视化工作流编辑器。
 
-### 9.2 先做确定性 Workflow
+后续如果加入 Agent Workflow，再逐步增加：
 
-把 PPT 生成视为第一个确定性工作流：
-
-```text
-WorkflowService.run_ppt_generation(job_id)
-  -> load source document
-  -> summarize
-  -> generate outline
-  -> generate slides JSON
-  -> validate JSON
-  -> generate pptx
-  -> save output
-  -> mark job succeeded
-```
-
-这能保留未来 Agent 的核心位置，但不会把 MVP 复杂化。
-
-### 9.3 未来扩展点
-
-后续如果加入 Agent Workflow，可以逐步增加：
-
-- `workflow_runs` 表。
-- `workflow_steps` 表。
+- workflow runs。
+- workflow steps。
 - tool registry。
-- tool permission。
 - step logs。
 - human approval。
 - retry / resume。
-- workflow templates。
 
-这些都不进入一期 MVP。
-
-## 10. MVP 开发顺序建议
+## 11. MVP 开发顺序建议
 
 推荐实现顺序：
 
-1. 创建 `backend/` 骨架和 `GET /health`。
-2. 配置 PostgreSQL、pgvector、SQLAlchemy、Alembic。
-3. 实现核心表 migration。
-4. 实现认证和 JWT。
-5. 实现文件上传和本地存储。
-6. 实现文件解析和状态流转。
-7. 实现 BGE-M3 embedding client。
-8. 实现 pgvector chunk 入库和检索。
-9. 实现普通聊天和文件问答。
-10. 实现 PPT 任务、生成和下载。
-11. 前端逐步替换 Mock API。
-12. 补充测试、错误码、日志和文档状态。
+1. 前端接入后端 `/api/v1/chat`。
+2. 稳定 LLM Provider 和错误边界。
+3. 增加最小后端测试。
+4. 实现文件上传和本地存储。
+5. 实现 TXT/PDF 文档解析。
+6. 实现 chunk 和 embedding。
+7. 实现 VectorStore 检索。
+8. 将 ChatService 扩展为支持 `file_id` 的单文件 RAG。
+9. 同步前端文件问答交互。
+10. 再评估 AI 数据分析最小闭环。
 
-## 11. 测试策略
+## 12. 测试策略
 
 优先测试：
 
-- `AuthService`：用户创建或更新、JWT 签发。
-- `FileService`：文件格式、大小限制、用户隔离。
-- `ParserService`：TXT/PDF/DOCX parser happy path 和失败路径。
-- `RagService`：按 `file_id` 和 `user_id` 检索。
-- `ChatService`：普通对话、文件问答、消息保存。
-- `PptService`：任务创建、状态流转、下载权限。
+- `GET /health`。
+- `POST /api/v1/chat`。
+- Mock Provider。
+- OpenAI Provider 的配置错误。
+- FileService 文件格式和大小限制。
+- ParserService 成功和失败路径。
+- RagService 按 `file_id` 检索。
 
 测试边界：
 
-- 单元测试中 mock 钉钉、LLM、embedding 服务。
-- 集成测试使用测试数据库。
-- 不在测试中真实调用 Claude 或 OpenAI。
-- 不测试复杂 PPT 样式，只测试文件生成和任务状态。
+- 单元测试中 mock LLM 和 embedding 服务。
+- 不在测试中真实调用外部 LLM。
+- Data Analysis 当前只规划，不需要测试。
 
-## 12. 明确不做
+## 13. 明确不做
 
-Backend 一期不做：
+Backend v1.0 不做：
 
-- 密码注册。
-- 手机号登录。
-- 钉钉内嵌免登。
-- 多租户商业化能力。
-- 部门级权限管理。
+- 钉钉。
+- 企业登录。
+- 企业权限。
+- 多租户。
+- PPT 生成。
 - 多 LLM Provider 切换 UI。
-- 多模型选择 UI。
 - 企业全局知识库。
 - 多文件联合问答。
 - Celery。

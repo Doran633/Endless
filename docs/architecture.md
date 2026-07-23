@@ -1,91 +1,325 @@
-# 企业内部 AI 助手 MVP 架构设计
+# 独立网页版 AI 助手 MVP 架构设计
+
+> 本文档描述当前 v1.0 架构范围。
+> 本次更新不重新设计系统，只将既有工程思想同步到当前 v1.0 目标。
+> 当前保持单体架构，不引入复杂微服务。
 
 ## 1. 架构目标
 
-本架构服务于一期 MVP，优先保证核心链路可落地、可迭代、低运维成本。
+本架构服务于独立网页版 AI 助手 v1.0，优先保证核心链路可落地、可演示、可迭代。
 
-核心目标：
+当前 v1.0 核心目标：
 
-- 支持钉钉登录。
-- 支持单文件上传、解析、问答。
-- 支持基于文件生成 PPT。
-- 保持单体架构，降低早期复杂度。
-- 为后续对象存储、任务队列、企业知识库、多模型扩展保留接口边界。
+- 支持 Web AI 聊天。
+- 支持 LLM API 调用。
+- 支持文件上传。
+- 支持基于文档的 RAG 知识问答。
+- 为 AI 数据分析保留规划边界。
+- 保持单体后端架构，降低早期复杂度。
+- 为后续 Embedding、Vector Database、Agent Workflow 和 AI 数据分析保留清晰边界。
 
-## 2. 技术栈
+其中，文档解析、Embedding 和向量检索是 RAG 知识问答的支撑链路，不单独扩展为企业知识库平台。
 
-### 2.1 后端
+当前 v1.0 不包含：
 
-- Python 3.12
-- FastAPI
-- SQLAlchemy 2.0
-- Alembic
-- PostgreSQL 16
-- pgvector
+- 钉钉。
+- 企业登录。
+- 企业权限。
+- 多租户。
+- 微服务拆分。
+- 复杂任务队列。
+- PPT 生成。
 
-### 2.2 前端
+## 2. 当前架构范围
 
-- React 18
-- TypeScript
-- Vite
-- Ant Design 5
-- Zustand
+当前项目由三部分组成：
 
-### 2.3 基础设施
+```text
+frontend
+  -> backend
+    -> LLM Provider
+    -> File Storage
+    -> Parser
+    -> Embedding Provider
+    -> Vector Store
+    -> Data Analysis Service (planned only)
+```
 
-- Docker Compose
-- PostgreSQL 16 + pgvector
-- Redis 7
-- 本地文件存储
+当前已落地：
 
-### 2.4 LLM
+- `frontend/`：React + Vite 前端 Mock 原型。
+- `backend/`：FastAPI 后端基础聊天模块。
+- `LLMProvider` 抽象。
+- `MockLLMProvider`。
+- `OpenAIProvider`。
+- `GET /health`。
+- `POST /chat`。
+- `POST /api/v1/chat`。
 
-- 一期唯一 LLM Provider：Claude API。
-- 代码结构预留 Provider 接口。
-- 不提前实现第二个 Provider。
+当前尚未落地：
 
-决策结果：
+- 前端真实调用后端聊天接口。
+- 文件上传 API。
+- 文档解析。
+- Embedding。
+- Vector Store。
+- RAGService。
+- 数据库和持久化。
+- Data Analysis Service。当前只规划，不实现。
 
-- Claude API：通过环境变量 `ANTHROPIC_API_KEY` 和 `ANTHROPIC_BASE_URL` 配置，企业需保证网络可达。
-- embedding 模型：**BGE-M3**（本地部署，独立容器），维度 1024。企业数据不出域。
-- 可选接入：如需切换 Qwen / DeepSeek embedding API，通过 EmbeddingProvider 接口替换实现。
+## 3. 技术栈
 
-（详见 `mvp_decision.md` 第 2.4 节 / 第 3 节）
+### 3.1 已落地技术栈
 
-### 2.3 基础设施
+前端：
 
-- Docker Compose：PostgreSQL 16 + pgvector、FastAPI 后端、BGE-M3 embedding 服务
-- Redis：**一期不强依赖**，不在默认 Docker Compose 中。需要时（限流、Celery 等）再加入
+- React 18。
+- TypeScript。
+- Vite。
+- Ant Design 5。
+- Zustand。
+- dayjs。
 
-## 3. 系统边界
+后端：
 
-### 3.1 一期系统组件
+- Python。
+- FastAPI。
+- Pydantic。
+- OpenAI-compatible HTTP 调用。
+- 本地 Mock LLM Provider。
 
-- Web 前端：用户登录、聊天、文件上传、PPT 任务查看和下载。
-- API 服务：认证、文件、聊天、PPT 任务、LLM 编排。
-- PostgreSQL：业务数据、文件元数据、聊天记录、chunk、向量。
-- Redis：任务进度或临时状态，不用于 JWT session。
-- 本地文件系统：上传文件、PPT 输出
-- 钉钉开放平台：企业用户认证
-- Claude API：AI 对话和内容生成
+### 3.2 计划接入技术
 
-### 3.2 外部依赖
+以下技术用于支撑 v1.0 后续模块，但当前代码尚未完整实现：
 
-- 钉钉开放平台。
-- Claude API。
+- 数据库。
+- ORM。
+- 数据库迁移。
+- 文件解析库。
+- Embedding 模型。
+- 向量数据库或本地向量存储。
+- 后端自动化测试。
 
-## 4. 后端分层
+选型原则：
 
-后端采用单体三层架构：
+- v1.0 优先选择简单、可运行、可替换的实现。
+- 不为了未来扩展提前引入微服务。
+- 对 LLM、Parser、Embedding、Vector Store 保留接口边界。
+
+## 4. 系统组件
+
+### 4.1 Web Frontend
+
+职责：
+
+- 提供聊天界面。
+- 提供文件上传入口。
+- 展示文件状态。
+- 展示普通聊天回答。
+- 展示 RAG 问答回答。
+
+当前状态：
+
+- 已完成 Mock 原型。
+- 聊天、文件状态仍主要依赖本地 Mock。
+- 下一步应接入后端 `/api/v1/chat`。
+
+不做：
+
+- 直接调用 LLM API。
+- 直接处理文档解析。
+- 直接执行向量检索。
+
+### 4.2 API Service
+
+职责：
+
+- 定义 HTTP API。
+- 校验请求参数。
+- 调用 Service 层。
+- 返回统一响应结构。
+
+当前状态：
+
+- 已实现健康检查接口。
+- 已实现基础聊天接口。
+
+后续 v1.0 需要新增：
+
+- 文件上传 API。
+- 文件状态 API。
+- RAG 问答 API。
+
+### 4.3 Chat Service
+
+职责：
+
+- 编排普通聊天流程。
+- 组织基础 prompt。
+- 调用 LLM Service。
+- 返回聊天结果。
+
+当前状态：
+
+- 已实现基础聊天编排。
+- 尚未接入会话持久化。
+- 尚未接入 RAG 上下文。
+
+后续扩展：
+
+- 普通聊天继续走 LLM Service。
+- 文档问答时调用 RAG Service 获取上下文。
+- Agent Workflow 不应直接塞入 Chat Service，应由独立 Workflow/Agent 边界承接。
+
+### 4.4 LLM Service
+
+职责：
+
+- 屏蔽具体 LLM Provider。
+- 根据配置选择模型调用方式。
+- 统一向业务层提供聊天生成能力。
+
+当前状态：
+
+- 已有 `LLMProvider` 抽象。
+- 已有 Mock Provider。
+- 已有 OpenAI-compatible Provider。
+
+后续扩展：
+
+- 可新增更多 Provider。
+- 可增加 timeout、错误处理、调用日志。
+- 可为 RAG 和 Agent 调用增加 metadata。
+
+### 4.5 File Service
+
+职责：
+
+- 接收上传文件。
+- 校验文件大小和类型。
+- 保存原始文件。
+- 管理文件元数据和文件状态。
+
+当前状态：
+
+- 尚未实现。
+
+设计原则：
+
+- 业务代码不直接散落文件路径。
+- 本地文件系统作为 v1.0 简单实现。
+- 后续如需替换对象存储，只替换 File Service 的存储实现。
+
+### 4.6 Parser Service
+
+职责：
+
+- 根据文件类型选择 Parser。
+- 将文件解析为纯文本。
+- 返回解析结果和解析状态。
+
+当前状态：
+
+- 尚未实现。
+
+v1.0 建议：
+
+- TXT 必须支持。
+- PDF 建议支持。
+- DOCX 根据进度实现。
+- OCR 不进入当前 v1.0。
+
+扩展边界：
+
+- 使用 Parser 接口或注册表管理不同文件类型。
+- 后续新增 CSV、Excel、JSON 解析时，不影响普通文档 Parser 主流程。
+
+### 4.7 RAG Service
+
+职责：
+
+- 接收用户问题和 `file_id`。
+- 调用 Embedding Provider 生成查询向量。
+- 调用 Vector Store 检索相关 chunks。
+- 组装上下文。
+- 调用 LLM Service 生成基于文档的回答。
+
+当前状态：
+
+- 尚未实现。
+
+v1.0 边界：
+
+- 优先支持单文件问答。
+- 检索范围限定在当前文件。
+- 不做全局知识库。
+- 不做多文件联合问答。
+
+### 4.8 Embedding Provider
+
+职责：
+
+- 将文本转换为向量。
+- 为文档 chunks 和用户问题提供统一 embedding 能力。
+
+当前状态：
+
+- 尚未实现。
+
+设计原则：
+
+- 先实现一个可用 Provider。
+- 不在 v1.0 实现多 Provider UI。
+- 通过接口保留后续替换模型的能力。
+
+### 4.9 Vector Store
+
+职责：
+
+- 保存 chunk 向量。
+- 按文件范围检索相关 chunks。
+- 屏蔽具体向量库实现。
+
+当前状态：
+
+- 尚未实现。
+
+设计原则：
+
+- v1.0 可选择本地轻量向量存储或 PostgreSQL + pgvector。
+- 无论使用哪种实现，Service 层只依赖 Vector Store 抽象。
+
+### 4.10 Data Analysis Service
+
+Data Analysis Service 是规划能力，当前暂不实现。
+
+规划职责：
+
+- 接收结构化数据文件。
+- 识别字段和数据类型。
+- 执行基础统计和聚合分析。
+- 生成图表数据。
+- 调用 LLM Service 生成自然语言解释。
+
+设计边界：
+
+- 不作为当前核心 MVP 闭环的必做功能。
+- 不引入独立微服务。
+- 后续仍放在单体后端的 Service 层中。
+- 图表应基于程序计算结果生成，LLM 只负责解释和总结。
+
+## 5. 后端分层
+
+后端采用单体分层架构：
 
 ```text
 api/v1
   -> services
   -> repositories
-  -> database
+  -> database / storage / external providers
 ```
 
-### 4.1 API 层
+### 5.1 API 层
 
 职责：
 
@@ -99,8 +333,9 @@ api/v1
 - 业务逻辑。
 - 直接访问数据库。
 - 直接调用 LLM。
+- 直接解析文件。
 
-### 4.2 Service 层
+### 5.2 Service 层
 
 职责：
 
@@ -108,30 +343,36 @@ api/v1
 - 调用 Repository。
 - 调用 LLM Provider。
 - 调用 Parser。
-- 调用 FileService。
+- 调用 File Service。
+- 调用 Vector Store。
 
 不做：
 
 - 直接处理 HTTP Request / Response。
 - 编写复杂 SQL。
+- 保存前端 UI 状态。
 
-### 4.3 Repository 层
+### 5.3 Repository 层
 
 职责：
 
 - 数据访问。
 - CRUD。
-- 明确的查询封装。
+- 查询封装。
+- 隐藏数据库细节。
 
 不做：
 
 - 业务判断。
 - LLM 调用。
 - 文件解析。
+- prompt 组装。
 
-## 5. 建议目录结构
+## 6. 建议目录结构
 
-后续进入工程初始化阶段时，建议结构如下：
+当前项目结构已经包含 `frontend/` 和 `backend/`。
+
+建议后续在现有结构上演进：
 
 ```text
 project/
@@ -139,182 +380,177 @@ project/
   backend/
     app/
       api/v1/
+        chat.py
+        health.py
+        files.py
       core/
-      models/
       schemas/
-      repositories/
       services/
+        chat_service.py
+        llm_service.py
+        file_service.py
+        parser_service.py
+        rag_service.py
+        data_analysis_service.py  # 未来扩展，当前暂不实现
+      repositories/
       llm/
       parsers/
+      embedding/
+      vector_store/
     tests/
-    alembic/
     uploads/
-    ppt_outputs/
   frontend/
     src/
       api/
       components/
-      pages/
-      hooks/
       stores/
       types/
 ```
 
-当前阶段不创建 `backend/` 和 `frontend/`。
+说明：
 
-## 6. 认证架构
+- `data_analysis_service.py` 只是未来扩展位置说明，当前不创建实现。
+- 当前不增加独立服务目录或微服务工程。
+- 先在单体后端内保持清晰模块边界。
 
-一期只支持钉钉 OAuth / 免登。
+## 7. 数据流
 
-流程：
-
-1. 前端获取钉钉 auth code。
-2. 前端提交 auth code 到后端。
-3. 后端调用钉钉接口换取用户身份。
-4. 后端创建或更新本地用户。
-5. 后端签发 JWT。
-6. 前端携带 JWT 访问 API。
-
-认证决策：
-
-- 不做密码注册。
-- 不做手机号登录。
-- 用户表主键使用 UUID。
-- 钉钉身份字段单独保存。
-- 扩展字段使用 JSONB metadata。
-
-决策结果：
-
-- JWT access_token 有效期：**24 小时**。
-- refresh_token：**提供**，有效期 **7 天**。
-- 登录日志：**一期不实现**。
-
-（详见 `mvp_decision.md` 第 2.1 节）
-
-## 7. 文件与 RAG 架构
-
-一期只做“单文件问答”。
-
-流程：
+### 7.1 普通聊天数据流
 
 ```text
-上传文件
-  -> 本地存储
-  -> 解析文本
-  -> chunk 切分
-  -> embedding
-  -> 写入 file_chunks
-  -> 按 file_id 检索
-  -> 组装上下文
-  -> 调用 Claude API
+用户输入
+  -> Web Frontend
+  -> POST /api/v1/chat
+  -> Chat API
+  -> Chat Service
+  -> LLM Service
+  -> LLM Provider
+  -> LLM Service
+  -> Chat Service
+  -> API Response
+  -> Web Frontend 展示回答
 ```
 
-关键约束：
+当前状态：
 
-- 不做企业知识库。
-- 不做全局向量检索。
-- 检索必须带 `file_id`。
-- 文件数据必须按用户隔离。
+- 后端链路已基本存在。
+- 前端尚未接入后端聊天接口。
 
-扩展边界：
+### 7.2 文件上传与解析数据流
 
-- Parser 使用接口或注册表管理。
-- FileService 封装本地存储。
-- Repository 封装 pgvector 查询。
+```text
+用户选择文件
+  -> Web Frontend
+  -> File API
+  -> File Service
+  -> 本地文件存储
+  -> Parser Service
+  -> Parser
+  -> 解析文本
+  -> 文件状态更新
+```
 
-## 8. PPT 生成架构
+当前状态：
 
-PPT 生成为异步任务。
+- 尚未实现。
 
-建议流程：
+v1.0 原则：
 
-1. 创建 `ppt_jobs` 任务记录。
-2. 后台任务执行内容生成。
-3. 后台任务生成 PPT 文件。
-4. 更新任务状态。
-5. 前端轮询获取状态。
-6. 用户下载 PPT。
+- 先保证文件可上传、可解析、状态可见。
+- 不引入复杂任务队列。
+- 如解析耗时较短，可先同步或简单后台处理。
 
-一期不引入 Celery。
+### 7.3 RAG 问答数据流
 
-建议：
+```text
+用户选择已解析文件并提问
+  -> Web Frontend
+  -> Chat/RAG API
+  -> Chat Service
+  -> RAG Service
+  -> Embedding Provider 生成查询向量
+  -> Vector Store 按 file_id 检索 chunks
+  -> RAG Service 组装上下文
+  -> LLM Service
+  -> LLM Provider
+  -> 返回基于文档的回答
+  -> Web Frontend 展示回答和来源
+```
 
-- 即使用 FastAPI BackgroundTasks，也应持久化任务状态。
-- 任务状态持久化到数据库，Redis 仅作为可选临时进度缓存。
-- 后续迁移 Celery 时保持 API 不变。
+当前状态：
 
-决策结果：
+- 尚未实现。
 
-- PPT 生成库：**python-pptx**。
-- 模板策略：**固定模板**，二期支持多模板选择和编辑。
+v1.0 原则：
 
-（详见 `mvp_decision.md` 第 2.5 节）
+- 单文件 RAG 优先。
+- 检索必须限定在当前文件。
+- 回答应保留可追溯来源信息。
 
-## 9. 存储架构
+### 7.4 AI 数据分析数据流
 
-一期使用本地文件系统。
+AI 数据分析是规划能力，当前暂不实现。
 
-路径建议：
+规划数据流：
 
-- 上传文件：`uploads/`
-- PPT 输出：`ppt_outputs/`
+```text
+用户上传结构化数据
+  -> Data File API
+  -> File Service
+  -> Data Analysis Service
+  -> 结构化数据解析
+  -> 程序计算统计结果
+  -> 图表数据生成
+  -> LLM Service 生成自然语言解释
+  -> Web Frontend 展示表格、图表和解释
+```
 
 设计原则：
 
-- 不直接在业务代码散落文件路径。
-- 通过 FileService 封装存储行为。
-- 后续替换 OSS / MinIO 时修改 FileService 实现。
+- 分析结果由程序计算产生。
+- LLM 负责解释，不负责凭空生成数值。
+- 继续使用单体后端内的 Service 模块，不拆微服务。
 
-决策结果：
+## 8. 存储架构
 
-- 文件保留周期：**一期不自动删除**。
-- 删除策略：用户显式删除时，**同步删除 chunks 和 PPT 产物**。
-- 保留原始文件：**是**。
+v1.0 优先使用简单本地存储。
 
-（详见 `mvp_decision.md` 第 2.3 节）
+职责边界：
 
-## 10. 异步任务策略
+- File Service 负责文件保存和读取。
+- Repository 负责文件元数据、chunk、消息等数据访问。
+- Vector Store 负责向量写入和检索。
 
-一期不使用 Celery 或消息队列。
+当前状态：
+
+- 尚未建立数据库。
+- 尚未实现真实文件存储链路。
+
+后续选择：
+
+- 若优先快速演示，可使用轻量本地存储。
+- 若优先贴近生产，可使用 PostgreSQL + pgvector。
+
+无论选择哪种方式，业务层都不应直接绑定具体存储实现。
+
+## 9. 异步任务策略
+
+v1.0 不引入复杂任务队列。
 
 建议策略：
 
-- 执行器：FastAPI BackgroundTasks。
-- 任务状态：数据库持久化。
-- 临时进度：Redis 可选。
-- 查询方式：一期使用前端轮询，不引入 SSE。
+- 文件解析优先保持简单。
+- 短任务可同步执行。
+- 稍长任务可使用 FastAPI BackgroundTasks。
+- 状态需要可查询，不能只存在内存里。
 
 需要避免：
 
-- 仅使用内存保存关键任务状态。
+- 为 MVP 提前引入 Celery、Kafka、RabbitMQ。
 - API 与具体任务执行器强绑定。
+- 使用内存保存关键业务状态。
 
-## 11. Docker Compose 架构
-
-一期建议服务：
-
-- `db`：PostgreSQL + pgvector。
-- `app`：FastAPI 后端。
-- `embedding`：BGE-M3 embedding 服务（本地部署）。
-
-前端开发方式：
-
-- 前端不加入 Docker Compose。
-- 前端开发期在宿主机通过 Vite 本地启动。
-- 后端需要配置 CORS 允许前端本地开发地址。
-
-决策结果：开发期使用 **bind mount**，生产环境使用 **named volume**。
-
-（详见 `mvp_decision.md` 第 3 节）
-
-## 12. 时间与 ID 规范
-
-- 主键使用 UUID。
-- 数据库时间字段使用 `TIMESTAMPTZ`。
-- Python 使用 timezone-aware UTC 时间，例如 `datetime.now(timezone.utc)`。
-- 扩展字段统一命名为 `metadata`，类型使用 JSONB。
-
-## 13. API 响应规范
+## 10. API 响应规范
 
 统一响应格式：
 
@@ -326,15 +562,32 @@ PPT 生成为异步任务。
 }
 ```
 
-决策结果：
+当前已实现的聊天接口应继续保持该响应风格。
 
-- 错误码范围：`4xxxx`，前两位标识模块（`40xxx` 通用、`41xxx` 认证、`42xxx` 文件、`43xxx` 聊天、`44xxx` PPT）。
-- 分页响应格式：`{ "items": [], "total": int, "page": int, "page_size": int }`。
+后续建议：
 
-（详见 `mvp_decision.md` 第 2.6 节）
+- 普通聊天错误归入聊天模块错误。
+- 文件上传和解析错误归入文件模块错误。
+- RAG 检索失败应返回可理解的业务错误。
+- 前端不应依赖后端未处理异常文本。
 
-## 14. 当前阶段说明
+## 11. 当前阶段说明
 
-当前仍处于架构设计和文档整理阶段。
+当前项目处于：
 
-本阶段不创建后端工程、不创建前端工程、不写业务代码。
+**前端 Mock 原型 + 后端基础聊天模块 + v1.0 文档同步阶段。**
+
+下一阶段最重要的工程目标：
+
+1. 前端接入后端 `/api/v1/chat`。
+2. 稳定 LLM Provider 和错误边界。
+3. 实现文件上传。
+4. 实现文档解析。
+5. 实现单文件 RAG 问答。
+
+架构原则保持不变：
+
+- 单体优先。
+- 模块边界清晰。
+- MVP 范围收敛。
+- 规划能力只保留扩展位置，不提前实现复杂系统。

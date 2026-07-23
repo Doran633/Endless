@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { Session, Message } from '../types';
 import { mockSessions, mockMessages } from '../api/mock';
-import { generateAIResponse } from '../api/mock';
+import { sendChatMessage } from '../api/chatApi';
 
 interface ChatState {
   sessions: Session[];
@@ -78,9 +78,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
       }));
     }
 
-    // 模拟 AI 响应
-    const currentSession = get().sessions.find((s) => s.id === currentSessionId);
-    const aiContent = await generateAIResponse(content, currentSession?.mode, currentSession?.fileId);
+    let aiContent: string;
+    try {
+      aiContent = await sendChatMessage(content);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'AI 回复失败，请稍后重试';
+      aiContent = `AI 回复失败：${message}`;
+    }
 
     const aiMsg: Message = {
       id: `msg-${Date.now() + 1}`,

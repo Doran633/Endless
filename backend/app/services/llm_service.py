@@ -1,4 +1,5 @@
 from app.core.config import settings
+from app.core.errors import LLMConfigError
 from app.llm.base import ChatMessage, LLMProvider, LLMResponse
 from app.llm.mock_provider import MockLLMProvider
 from app.llm.openai_provider import OpenAIProvider
@@ -12,6 +13,14 @@ class LLMService:
         return self.provider.chat(messages)
 
     def _build_provider(self) -> LLMProvider:
-        if settings.llm_provider == "openai":
-            return OpenAIProvider()
-        return MockLLMProvider()
+        providers: dict[str, type[LLMProvider]] = {
+            "mock": MockLLMProvider,
+            "openai": OpenAIProvider,
+        }
+        provider_class = providers.get(settings.llm_provider)
+        if provider_class is None:
+            supported = ", ".join(sorted(providers))
+            raise LLMConfigError(
+                f"Unknown LLM_PROVIDER '{settings.llm_provider}'. Supported providers: {supported}"
+            )
+        return provider_class()

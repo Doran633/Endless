@@ -1,63 +1,217 @@
 # 项目状态
 
-## 当前阶段
+> 本文档记录当前代码真实状态，不记录历史计划，不包含未来企业功能范围。
 
-**架构冻结阶段已完成**，可进入工程初始化阶段。
+## 1. 当前版本
 
-## 当前工作范围更新
+当前版本：`v0.2.0`
 
-- 已创建 `mvp_decision.md` 作为工程初始化的唯一依据。
-- 已清理所有设计文档中的待确认项，固化为决策结果。
-- 下一步：创建 `backend/` 和 `frontend/` 工程代码。
+当前阶段：独立网页版 AI 助手 v1.0 的真实聊天闭环阶段。
 
-## 已创建文档
+当前状态判断：
 
-- `requirements.md`
-- `architecture.md`
-- `architecture_review.md`
-- `database_design.md`
-- `module_design.md`
-- `api_design.md`
-- `development_plan.md`
-- `mvp_decision.md` ← **新增，架构冻结决策记录**
-- `status.md`
+- 已完成前端 Mock 原型。
+- 已完成后端基础聊天模块。
+- 已完成前后端真实聊天联调。
+- 已完成 Mock Provider 和 OpenAI-compatible Provider 的基础配置与错误处理。
+- 文件上传、文档解析、RAG 问答尚未开始实现。
 
-## 已确认决策（核心变更汇总）
+## 2. 当前 v1.0 目标
 
-| 决策项 | 决策结果 | 参考文档 |
-|--------|---------|---------|
-| 钉钉登录方式 | 扫码登录（Web 通用），内嵌免登二期 | mvp_decision.md 2.1 |
-| JWT 策略 | access_token 24h + refresh_token 7d | mvp_decision.md 2.1 |
-| 文件格式 | TXT、PDF、DOCX（上限 20MB） | mvp_decision.md 2.3 |
-| 解析时机 | 上传后**异步解析**（BackgroundTask） | mvp_decision.md 2.3 |
-| chunk | 512 tokens，overlap 64 | mvp_decision.md 2.4 |
-| embedding | **BGE-M3（本地部署）**，1024 维，ivfflat | mvp_decision.md 2.4 |
-| PPT 生成 | python-pptx，固定模板，5-15 页 | mvp_decision.md 2.5 |
-| 任务执行 | FastAPI BackgroundTasks，任务状态持久化到数据库 | mvp_decision.md 2.5 |
-| 前端轮询 | 不引入 SSE | mvp_decision.md 2.2 |
-| 删除策略 | 物理删除（无软删除） | mvp_decision.md 2.7 |
-| 错误码 | 4xxxx 格式，按模块分配区间 | mvp_decision.md 2.6 |
-| 分页格式 | `{ items, total, page, page_size }` | mvp_decision.md 2.6 |
-| Redis | 一期不强依赖，不在默认 Docker Compose 中 | mvp_decision.md 第 3 节 |
-| 存储挂载 | 开发期 bind mount，生产 named volume | mvp_decision.md 第 3 节 |
-| 配置加载 | pydantic-settings + .env | mvp_decision.md 第 3 节 |
-| LLM 模型 | 通过环境变量配置，默认 claude-sonnet-5 | mvp_decision.md 2.7 |
+v1.0 目标是构建一个独立网页版 AI 助手。
 
-## 已确认架构原则
+核心能力：
 
-- 前端不加入 Docker Compose，开发期通过宿主机 Vite 本地启动。
-- 后端 Docker Compose 服务：`db`（PostgreSQL 16 + pgvector）、`app`（FastAPI）、`embedding`（BGE-M3）。
-- 后端分层：`api → service → repository`，禁止跨层调用。
-- 所有业务接口默认需要 JWT（登录接口除外）。
-- 用户数据严格按 user_id 隔离。
-- 所有设计文档中与此冲突的内容以 `mvp_decision.md` 为准。
+- AI 聊天。
+- 文件上传。
+- RAG 知识问答。
+- AI 数据分析规划能力。
 
-## 下一步行动
+支撑能力：
 
-启动工程初始化，按 `development_plan.md` 的阶段划分执行：
+- LLM API 调用。
+- 文档解析。
+- Embedding。
+- 向量检索。
 
-1. 创建 `backend/` 工程结构。
-2. 创建 `frontend/` 工程结构。
-3. 配置 Docker Compose。
-4. 配置数据库和 Alembic 迁移。
-5. 按阶段一至三逐步实现 MVP 功能。
+当前 v1.0 不包含：
+
+- 钉钉。
+- 企业登录。
+- 企业权限。
+- PPT 生成。
+- 多租户。
+- 微服务。
+- 复杂任务队列。
+
+## 3. 已完成模块
+
+### 3.1 前端 Mock 原型
+
+目录：`frontend/`
+
+已完成：
+
+- React + Vite 前端工程。
+- 基础页面布局。
+- 登录页 Mock。
+- 侧边栏。
+- 聊天区。
+- 消息输入框。
+- 消息渲染组件。
+- 文件中心 Mock。
+- PPT 任务中心 Mock。
+- Zustand 状态管理。
+- 本地 Mock API：`frontend/src/api/mock.ts`。
+
+当前限制：
+
+- 前端聊天已经调用后端 `/api/v1/chat`。
+- 前端会话和历史消息初始化仍使用 Mock 数据。
+- 文件中心仅模拟上传和状态变化，没有真实后端文件链路。
+
+### 3.2 后端基础聊天模块
+
+目录：`backend/`
+
+已完成：
+
+- FastAPI 后端工程骨架。
+- 健康检查接口：`GET /health`。
+- 基础聊天接口：
+  - `POST /chat`
+  - `POST /api/v1/chat`
+- 聊天请求和响应 Schema。
+- `ChatService` 聊天业务编排。
+- `LLMService` LLM Provider 选择。
+- `LLMProvider` 抽象接口。
+- `MockLLMProvider` 本地开发模型。
+- `OpenAIProvider` OpenAI-compatible 调用实现。
+- 统一成功响应工具。
+- 应用级错误类型。
+- LLM 配置错误和调用错误的统一 JSON 响应。
+
+当前限制：
+
+- `/chat` 是临时兼容路径，正式业务路径应优先使用 `/api/v1/chat`。
+- LLM 错误处理已覆盖 v0.2 的配置错误和 Provider 调用错误，但尚未覆盖全局未知异常。
+- API 层当前直接实例化 Service，后续需要引入依赖注入。
+- 目前以手动验证和类型检查为主，尚未建立自动化测试目录。
+
+### 3.3 项目文档
+
+目录：`docs/`
+
+已完成：
+
+- 架构评审文档。
+- 开发计划文档。
+- 后端设计文档。
+- 聊天模块说明文档。
+- v0.2 LLM 聊天集成计划。
+- v0.2 聊天集成报告。
+- v1.0 路线图。
+- 文档同步审查报告。
+
+当前限制：
+
+- 部分历史文档仍未同步到当前 v1.0 范围。
+- 后续需要继续同步架构、模块、API 和数据库设计文档。
+
+## 4. 正在开发模块
+
+当前正在推进的模块：
+
+- v0.2 聊天集成收尾。
+- 文档状态同步。
+- 后端聊天模块技术债识别。
+
+下一步最适合推进：
+
+- 补充后端聊天接口最小自动化测试。
+- 固化 v0.2 启动和配置说明。
+- 进入 v0.3 文件上传设计与实现。
+
+## 5. 未开始模块
+
+当前尚未开始实现：
+
+- 真实文件上传 API。
+- 文件元数据管理。
+- 文件内容存储。
+- 文档解析。
+- 文档 chunk。
+- Embedding 调用。
+- 向量数据库或向量存储抽象。
+- RAG 检索服务。
+- 基于文件的问答接口。
+- 聊天会话持久化。
+- 数据库模型。
+- 数据库迁移。
+- 全局异常处理。
+- 请求日志和 request id。
+- AI 数据分析服务。
+- 结构化数据上传。
+- 自动图表生成。
+- 数据自然语言解释。
+
+## 6. 当前技术栈
+
+### 6.1 已落地技术栈
+
+前端：
+
+- React 18。
+- TypeScript。
+- Vite。
+- Ant Design 5。
+- Zustand。
+- dayjs。
+
+后端：
+
+- Python。
+- FastAPI。
+- Pydantic。
+- OpenAI-compatible HTTP 调用。
+- 本地 Mock LLM Provider。
+
+工程：
+
+- Git。
+- npm。
+- TypeScript 类型检查。
+
+### 6.2 尚未落地技术栈
+
+以下技术尚未在当前代码中真正实现：
+
+- 数据库。
+- ORM。
+- 数据库迁移。
+- 文件解析库。
+- Embedding 模型。
+- 向量数据库。
+- RAG 检索链路。
+- 后端自动化测试框架。
+
+## 7. 当前代码状态结论
+
+当前项目不是完整可用的 AI 应用 MVP，而是：
+
+**前端 Mock 原型 + 后端基础聊天模块 + 前后端真实 LLM 聊天闭环 + v1.0 文档规划。**
+
+项目已经具备继续演进的基础边界：
+
+- 前端有主要页面和状态管理。
+- 后端有 API、Schema、Service、LLM Provider 的基本分层。
+- LLM 调用已经通过 Provider 抽象预留扩展点。
+- 前端聊天已经接入后端 `/api/v1/chat`。
+
+当前最大缺口是：
+
+- 文件和 RAG 主链路尚未开始。
+- 数据库和持久化能力尚未建立。
+- AI 数据分析仍只是规划能力，尚未进入实现。
+
+因此，下一阶段应先补齐 v0.2 的最小自动化测试和启动说明，再进入 v0.3 文件上传；AI 数据分析先保留规划边界，不挤占当前主链路。
