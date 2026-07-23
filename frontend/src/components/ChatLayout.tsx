@@ -2,7 +2,6 @@ import { useState } from 'react';
 import Sidebar from './Sidebar';
 import ChatArea from './ChatArea';
 import FileCenter from './FileCenter';
-import PptTaskCenter from './PptTaskCenter';
 import { useChatStore } from '../stores/chatStore';
 import type { NavView } from './Sidebar';
 
@@ -19,8 +18,6 @@ export default function ChatLayout() {
     switch (activeNav) {
       case 'files':
         return <FileCenter />;
-      case 'ppt':
-        return <PptTaskCenter />;
       case 'chat':
       default:
         // ChatArea handles empty state (no session) by showing WelcomePage

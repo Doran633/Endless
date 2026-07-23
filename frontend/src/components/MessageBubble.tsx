@@ -628,7 +628,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
             marginBottom: 6,
           }}
         >
-          {isUser ? '你' : 'WorkBuddy'}
+          {isUser ? '你' : '北辰agent'}
         </Text>
         <div style={{ lineHeight: 1.7 }}>
           {blocks.map((block, i) => renderBlock(block, i))}

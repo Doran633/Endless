@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Button, Typography, Space, Card } from 'antd';
 import {
-  DingtalkOutlined,
   RobotOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '../stores/authStore';
@@ -46,17 +45,17 @@ export default function LoginPage() {
               style={{ fontSize: 64, color: '#1677ff', marginBottom: 16 }}
             />
             <Title level={2} style={{ margin: 0 }}>
-              WorkBuddy
+              北辰agent
             </Title>
             <Text type="secondary" style={{ fontSize: 16 }}>
-              企业 AI 助手
+              独立网页版 AI 助手
             </Text>
           </div>
 
           <Button
             type="primary"
             size="large"
-            icon={<DingtalkOutlined />}
+            icon={<RobotOutlined />}
             loading={loading}
             onClick={handleLogin}
             style={{
@@ -66,11 +65,11 @@ export default function LoginPage() {
               fontSize: 16,
             }}
           >
-            钉钉扫码登录
+            进入演示
           </Button>
 
           <Text type="secondary" style={{ fontSize: 12 }}>
-            演示版本 · 点击后模拟钉钉登录流程
+            演示版本 · 当前不接入企业登录
           </Text>
         </Space>
       </Card>

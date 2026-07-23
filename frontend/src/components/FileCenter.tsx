@@ -7,7 +7,6 @@ import {
   Button,
   Space,
   message,
-  Progress,
   Modal,
   Input,
   Empty,
@@ -18,8 +17,6 @@ import {
   FileTextOutlined,
   FilePdfOutlined,
   FileWordOutlined,
-  FilePptOutlined,
-  DownloadOutlined,
   LoadingOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
@@ -27,7 +24,6 @@ import {
   EyeOutlined,
 } from '@ant-design/icons';
 import { useFileStore } from '../stores/fileStore';
-import { usePptStore } from '../stores/pptStore';
 import type { FileItem } from '../types';
 
 const { Title, Text } = Typography;
@@ -60,11 +56,7 @@ function FileIcon({ ext }: { ext: string }) {
 
 export default function FileCenter() {
   const { files, uploadFile, parseFile, removeFile } = useFileStore();
-  const { jobs, createJob } = usePptStore();
   const [uploading, setUploading] = useState(false);
-  const [pptModalOpen, setPptModalOpen] = useState(false);
-  const [pptTitle, setPptTitle] = useState('');
-  const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
 
   const handleUpload = async (file: File) => {
@@ -86,11 +78,6 @@ export default function FileCenter() {
     message.warning('RAG 问答将在下一阶段开放');
   };
 
-  const handleGeneratePpt = (file: FileItem) => {
-    file;
-    message.warning('PPT 生成暂不属于当前 v0.4 范围');
-  };
-
   const handleParse = async (file: FileItem) => {
     try {
       await parseFile(file.id);
@@ -99,14 +86,6 @@ export default function FileCenter() {
       const errorMessage = error instanceof Error ? error.message : '文档解析失败';
       message.error(errorMessage);
     }
-  };
-
-  const handlePptConfirm = async () => {
-    if (!pptTitle.trim() || !selectedFileId) return;
-    const file = files.find((f) => f.id === selectedFileId);
-    setPptModalOpen(false);
-    await createJob(selectedFileId, file?.original_name || '', pptTitle.trim());
-    message.success('PPT 生成任务已创建');
   };
 
   const columns = [
@@ -162,7 +141,6 @@ export default function FileCenter() {
       key: 'actions',
       width: 280,
       render: (_: unknown, record: FileItem) => {
-        const job = jobs.find((j) => j.fileId === record.id);
         return (
           <Space size={4} wrap>
             {(record.status === 'uploaded' || record.status === 'failed') && (
@@ -192,23 +170,6 @@ export default function FileCenter() {
             >
               💬 问答
             </Button>
-            <Button
-              size="small"
-              type="link"
-              onClick={() => handleGeneratePpt(record)}
-            >
-              📊 PPT
-            </Button>
-            {job?.status === 'succeeded' && (
-              <Button
-                size="small"
-                type="link"
-                icon={<DownloadOutlined />}
-                onClick={() => message.success('模拟下载')}
-              >
-                下载PPT
-              </Button>
-            )}
             <Button
               size="small"
               type="link"
@@ -313,32 +274,6 @@ export default function FileCenter() {
           </div>
         )}
       </div>
-
-      {/* PPT Generation Modal */}
-      <Modal
-        title="生成 PPT"
-        open={pptModalOpen}
-        onOk={handlePptConfirm}
-        onCancel={() => setPptModalOpen(false)}
-        okText="开始生成"
-        cancelText="取消"
-        okButtonProps={{ disabled: !pptTitle.trim() }}
-      >
-        <Space direction="vertical" style={{ width: '100%' }}>
-          <Text>
-            基于文档：
-            <Text strong>
-              {files.find((f) => f.id === selectedFileId)?.original_name}
-            </Text>
-          </Text>
-          <Input
-            placeholder="请输入 PPT 标题（必填）"
-            value={pptTitle}
-            onChange={(e) => setPptTitle(e.target.value)}
-            onPressEnter={handlePptConfirm}
-          />
-        </Space>
-      </Modal>
 
       <Modal
         title={previewFile?.original_name || '文档预览'}

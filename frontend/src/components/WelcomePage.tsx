@@ -14,21 +14,21 @@ const capabilities = [
   {
     icon: <FileTextOutlined style={{ fontSize: 32, color: '#1677ff' }} />,
     title: '文件分析',
-    desc: '上传 PDF、DOCX、TXT 文件，自动解析内容，支持基于文件的深度问答',
+    desc: '上传 PDF、DOCX、TXT 文件，解析文档内容并查看文本预览',
     gradient: 'linear-gradient(135deg, #e6f4ff, #f0f5ff)',
     border: '1px solid #91caff',
   },
   {
     icon: <MessageOutlined style={{ fontSize: 32, color: '#52c41a' }} />,
     title: '智能问答',
-    desc: '围绕文件内容进行多轮对话，快速定位关键信息，辅助决策',
+    desc: '支持普通 AI 对话，文件问答将在后续 RAG 阶段开放',
     gradient: 'linear-gradient(135deg, #f6ffed, #f0fff0)',
     border: '1px solid #b7eb8f',
   },
   {
     icon: <FilePptOutlined style={{ fontSize: 32, color: '#fa8c16' }} />,
-    title: 'PPT 生成',
-    desc: '基于文件内容一键生成结构化 PPT，支持标题定制和段落调整',
+    title: '知识问答',
+    desc: '为后续单文件问答、文本切块和 RAG 检索保留演进空间',
     gradient: 'linear-gradient(135deg, #fff7e6, #fffbe6)',
     border: '1px solid #ffd591',
   },
@@ -37,7 +37,7 @@ const capabilities = [
 const quickStarts = [
   { emoji: '📊', text: '分析我上传的 Q2 销售报告' },
   { emoji: '🔍', text: '审查这份 PRD 的安全设计' },
-  { emoji: '📝', text: '基于会议纪要生成汇报 PPT' },
+  { emoji: '📝', text: '总结会议纪要中的行动项' },
 ];
 
 export default function WelcomePage() {
@@ -82,7 +82,7 @@ export default function WelcomePage() {
             <ThunderboltOutlined style={{ fontSize: 36, color: '#fff' }} />
           </div>
           <Title level={2} style={{ margin: 0, color: '#1a1a2e' }}>
-            WorkBuddy
+            北辰agent
           </Title>
           <Title
             level={4}
@@ -92,7 +92,7 @@ export default function WelcomePage() {
               fontWeight: 400,
             }}
           >
-            企业 AI 助手 — 上传文件、智能问答、一键生成 PPT
+            AI 助手 — 聊天、上传、解析文档
           </Title>
           <Paragraph
             style={{
@@ -102,8 +102,17 @@ export default function WelcomePage() {
               margin: '0 auto',
             }}
           >
-            上传文档即可开始，AI 自动解析内容，围绕文件深度对话，并可生成结构化汇报 PPT
+            支持真实 LLM 对话、文件上传与文档解析，后续将接入单文件问答和 RAG
           </Paragraph>
+          <Button
+            type="primary"
+            size="large"
+            icon={<MessageOutlined />}
+            onClick={() => handleQuickStart('你好，介绍一下你当前能做什么')}
+            style={{ marginTop: 24, borderRadius: 8, minWidth: 148 }}
+          >
+            开启新对话
+          </Button>
         </div>
 
         {/* Capability Cards */}
@@ -149,7 +158,7 @@ export default function WelcomePage() {
               快速开始
             </Text>
             <Text style={{ color: '#bfbfbf', fontSize: 13 }}>
-              选择一个示例，体验 WorkBuddy 的能力
+              选择一个示例，体验北辰agent的能力
             </Text>
           </div>
 

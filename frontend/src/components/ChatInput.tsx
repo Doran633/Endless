@@ -102,7 +102,7 @@ export default function ChatInput() {
             color: '#bbb',
           }}
         >
-          WorkBuddy 使用 AI 生成内容，请核实关键信息
+          北辰agent 使用 AI 生成内容，请核实关键信息
         </Text>
       </div>
     </div>

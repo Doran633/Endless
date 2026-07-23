@@ -57,17 +57,52 @@ class DocumentParserService:
     def _parse_docx(self, file_path: Path) -> str:
         try:
             from docx import Document
+            from docx.oxml.table import CT_Tbl
+            from docx.oxml.text.paragraph import CT_P
+            from docx.table import Table, _Cell
+            from docx.text.paragraph import Paragraph
 
             document = Document(file_path)
-            paragraphs = [paragraph.text.strip() for paragraph in document.paragraphs]
-            # Keep table text in the MVP parser because many business DOCX files use tables.
-            table_cells = [
-                cell.text.strip()
-                for table in document.tables
-                for row in table.rows
-                for cell in row.cells
-            ]
-            return "\n".join(text for text in [*paragraphs, *table_cells] if text)
+
+            def iter_blocks(parent: object):
+                container = parent._tc if isinstance(parent, _Cell) else parent.element.body
+                for child in container.iterchildren():
+                    if isinstance(child, CT_P):
+                        yield Paragraph(child, parent)
+                    elif isinstance(child, CT_Tbl):
+                        yield Table(child, parent)
+
+            def parse_container(parent: object) -> list[str]:
+                parts: list[str] = []
+                for block in iter_blocks(parent):
+                    if isinstance(block, Paragraph):
+                        paragraph_text = block.text.strip()
+                        if paragraph_text:
+                            parts.append(paragraph_text)
+                    elif isinstance(block, Table):
+                        parts.extend(format_table(block))
+                return parts
+
+            def parse_cell(cell: _Cell) -> str:
+                # DOCX business tables often contain paragraphs or nested tables inside a cell.
+                return "; ".join(parse_container(cell))
+
+            def format_table(table: Table) -> list[str]:
+                table_lines: list[str] = []
+                for row_index, row in enumerate(table.rows, start=1):
+                    cells: list[str] = []
+                    seen_cells: set[int] = set()
+                    for cell in row.cells:
+                        cell_key = id(cell._tc)
+                        if cell_key in seen_cells:
+                            continue
+                        seen_cells.add(cell_key)
+                        cells.append(parse_cell(cell))
+                    if any(cells):
+                        table_lines.append(f"表格行{row_index}: {' | '.join(cells)}")
+                return table_lines
+
+            return "\n".join(parse_container(document))
         except Exception as exc:
             raise DocumentParseError("Failed to parse DOCX file") from exc
 

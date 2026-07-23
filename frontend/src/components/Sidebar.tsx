@@ -2,7 +2,6 @@ import { Typography, Button, Badge, Divider } from 'antd';
 import {
   MessageOutlined,
   FileTextOutlined,
-  FilePptOutlined,
   PlusOutlined,
   ThunderboltOutlined,
   DeleteOutlined,
@@ -13,7 +12,7 @@ import { useAuthStore } from '../stores/authStore';
 
 const { Text } = Typography;
 
-export type NavView = 'chat' | 'files' | 'ppt';
+export type NavView = 'chat' | 'files';
 
 interface SidebarProps {
   activeNav: NavView;
@@ -23,7 +22,6 @@ interface SidebarProps {
 const navItems = [
   { key: 'chat' as NavView, icon: <MessageOutlined />, label: '对话', badge: 0 },
   { key: 'files' as NavView, icon: <FileTextOutlined />, label: '文件中心', badge: 0 },
-  { key: 'ppt' as NavView, icon: <FilePptOutlined />, label: 'PPT 任务', badge: 0 },
 ];
 
 export default function Sidebar({ activeNav, onNavChange }: SidebarProps) {
@@ -79,10 +77,10 @@ export default function Sidebar({ activeNav, onNavChange }: SidebarProps) {
           </div>
           <div>
             <Text strong style={{ color: '#fff', fontSize: 17, display: 'block' }}>
-              WorkBuddy
+              北辰agent
             </Text>
             <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11 }}>
-              企业 AI 助手
+              AI 文档助手
             </Text>
           </div>
         </div>
@@ -146,18 +144,20 @@ export default function Sidebar({ activeNav, onNavChange }: SidebarProps) {
       {/* New Chat Button */}
       <div style={{ padding: '4px 12px 12px' }}>
         <Button
-          type="dashed"
+          type="primary"
           icon={<PlusOutlined />}
           onClick={handleNewChat}
           style={{
             width: '100%',
             borderRadius: 8,
-            borderColor: 'rgba(255,255,255,0.15)',
-            color: 'rgba(255,255,255,0.8)',
+            background: '#1677ff',
+            borderColor: '#1677ff',
+            color: '#fff',
             fontSize: 13,
+            fontWeight: 600,
           }}
         >
-          新建对话
+          开启新对话
         </Button>
       </div>
 
@@ -247,7 +247,7 @@ export default function Sidebar({ activeNav, onNavChange }: SidebarProps) {
               padding: '24px 0',
             }}
           >
-            暂无对话，点击上方"新建对话"开始
+            暂无对话，点击上方“开启新对话”开始
           </Text>
         )}
       </div>
