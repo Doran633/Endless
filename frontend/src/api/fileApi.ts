@@ -1,4 +1,4 @@
-import type { FileItem } from '../types';
+import type { DocumentChunk, FileItem } from '../types';
 
 interface ApiResponse<T> {
   code: number;
@@ -47,6 +47,31 @@ export async function parseFile(fileId: string, extension: string): Promise<Pars
 
   if (!response.ok || payload.code !== 0 || !payload.data) {
     throw new Error(payload.message || '文档解析失败');
+  }
+
+  return payload.data;
+}
+
+export interface ChunkFileResponse {
+  file_id: string;
+  status: 'chunked';
+  chunk_count: number;
+  chunk_preview: DocumentChunk[];
+}
+
+export async function chunkFile(fileId: string, extension: string): Promise<ChunkFileResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/files/${fileId}/chunks`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ extension }),
+  });
+
+  const payload = (await response.json()) as ApiResponse<ChunkFileResponse>;
+
+  if (!response.ok || payload.code !== 0 || !payload.data) {
+    throw new Error(payload.message || '文本切块失败');
   }
 
   return payload.data;

@@ -3,6 +3,7 @@ import type { FileItem } from '../types';
 import { mockFiles } from '../api/mock';
 import { uploadFile as uploadFileApi } from '../api/fileApi';
 import { parseFile as parseFileApi } from '../api/fileApi';
+import { chunkFile as chunkFileApi } from '../api/fileApi';
 
 interface FileState {
   files: FileItem[];
@@ -10,6 +11,7 @@ interface FileState {
 
   uploadFile: (file: File) => Promise<void>;
   parseFile: (id: string) => Promise<void>;
+  chunkFile: (id: string) => Promise<void>;
   removeFile: (id: string) => void;
   getFileById: (id: string) => FileItem | undefined;
 }
@@ -59,6 +61,48 @@ export const useFileStore = create<FileState>((set, get) => ({
       }));
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '文档解析失败';
+      set((state) => ({
+        files: state.files.map((file) =>
+          file.id === id ? { ...file, status: 'failed', error_message: errorMessage } : file
+        ),
+      }));
+      throw error;
+    }
+  },
+
+  chunkFile: async (id: string) => {
+    const targetFile = get().files.find((file) => file.id === id);
+    if (!targetFile) {
+      throw new Error('文件不存在');
+    }
+
+    if (targetFile.status !== 'ready' && targetFile.status !== 'chunked') {
+      throw new Error('请先完成文档解析');
+    }
+
+    set((state) => ({
+      files: state.files.map((file) =>
+        file.id === id ? { ...file, status: 'processing', error_message: undefined } : file
+      ),
+    }));
+
+    try {
+      const chunkedFile = await chunkFileApi(id, targetFile.extension);
+      set((state) => ({
+        files: state.files.map((file) =>
+          file.id === id
+            ? {
+                ...file,
+                status: 'chunked',
+                chunk_count: chunkedFile.chunk_count,
+                chunk_preview: chunkedFile.chunk_preview,
+                chunked_at: new Date().toISOString(),
+              }
+            : file
+        ),
+      }));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '文本切块失败';
       set((state) => ({
         files: state.files.map((file) =>
           file.id === id ? { ...file, status: 'failed', error_message: errorMessage } : file

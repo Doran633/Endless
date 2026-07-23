@@ -36,3 +36,8 @@ class DocumentNotFoundError(AppError):
 class DocumentParseError(AppError):
     def __init__(self, message: str = "Failed to parse document") -> None:
         super().__init__(message=message, code=44002, status_code=400)
+
+
+class ChunkError(AppError):
+    def __init__(self, message: str = "Failed to chunk document") -> None:
+        super().__init__(message=message, code=45001, status_code=400)

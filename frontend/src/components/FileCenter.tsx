@@ -22,6 +22,7 @@ import {
   CloseCircleOutlined,
   SearchOutlined,
   EyeOutlined,
+  SplitCellsOutlined,
 } from '@ant-design/icons';
 import { useFileStore } from '../stores/fileStore';
 import type { FileItem } from '../types';
@@ -30,8 +31,9 @@ const { Title, Text } = Typography;
 
 const statusMap: Record<FileItem['status'], { color: string; text: string }> = {
   uploaded: { color: 'default', text: '已上传' },
-  processing: { color: 'processing', text: '解析中' },
+  processing: { color: 'processing', text: '处理中' },
   ready: { color: 'success', text: '已解析' },
+  chunked: { color: 'blue', text: '已切块' },
   failed: { color: 'error', text: '解析失败' },
 };
 
@@ -55,9 +57,10 @@ function FileIcon({ ext }: { ext: string }) {
 }
 
 export default function FileCenter() {
-  const { files, uploadFile, parseFile, removeFile } = useFileStore();
+  const { files, uploadFile, parseFile, chunkFile, removeFile } = useFileStore();
   const [uploading, setUploading] = useState(false);
   const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
+  const [chunkPreviewFile, setChunkPreviewFile] = useState<FileItem | null>(null);
 
   const handleUpload = async (file: File) => {
     setUploading(true);
@@ -88,6 +91,16 @@ export default function FileCenter() {
     }
   };
 
+  const handleChunk = async (file: FileItem) => {
+    try {
+      await chunkFile(file.id);
+      message.success(`"${file.original_name}" 切块完成`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '文本切块失败';
+      message.error(errorMessage);
+    }
+  };
+
   const columns = [
     {
       title: '文件名',
@@ -105,6 +118,7 @@ export default function FileCenter() {
               {formatSize(record.size_bytes)} · 上传于{' '}
               {new Date(record.created_at).toLocaleString('zh-CN')}
               {typeof record.char_count === 'number' && ` · ${record.char_count} 字符`}
+              {typeof record.chunk_count === 'number' && ` · ${record.chunk_count} chunks`}
             </Text>
             {record.error_message && (
               <>
@@ -128,7 +142,7 @@ export default function FileCenter() {
         const icon =
           status === 'processing' ? (
             <LoadingOutlined />
-          ) : status === 'ready' ? (
+          ) : status === 'ready' || status === 'chunked' ? (
             <CheckCircleOutlined />
           ) : status === 'failed' ? (
             <CloseCircleOutlined />
@@ -157,10 +171,30 @@ export default function FileCenter() {
               <Button
                 size="small"
                 type="link"
+                icon={<SplitCellsOutlined />}
+                onClick={() => handleChunk(record)}
+              >
+                切块
+              </Button>
+            )}
+            {(record.status === 'ready' || record.status === 'chunked') && (
+              <Button
+                size="small"
+                type="link"
                 icon={<EyeOutlined />}
                 onClick={() => setPreviewFile(record)}
               >
                 预览
+              </Button>
+            )}
+            {record.status === 'chunked' && (
+              <Button
+                size="small"
+                type="link"
+                icon={<SplitCellsOutlined />}
+                onClick={() => setChunkPreviewFile(record)}
+              >
+                chunks
               </Button>
             )}
             <Button
@@ -254,8 +288,8 @@ export default function FileCenter() {
           />
         )}
 
-        {/* v0.4 parses documents only; RAG indexing starts in a later milestone. */}
-        {files.some((f) => f.status === 'uploaded' || f.status === 'ready') && (
+        {/* v0.5 prepares chunks only; embedding and RAG start in later milestones. */}
+        {files.some((f) => f.status === 'uploaded' || f.status === 'ready' || f.status === 'chunked') && (
           <div
             style={{
               marginTop: 16,
@@ -268,7 +302,7 @@ export default function FileCenter() {
             <Space>
               <LoadingOutlined style={{ color: '#fa8c16' }} />
               <Text style={{ color: '#d46b08', fontSize: 13 }}>
-                当前支持文档解析预览。RAG 问答将在下一阶段开放。
+                当前支持文档解析和文本切块。Embedding 与 RAG 问答将在后续阶段开放。
               </Text>
             </Space>
           </div>
@@ -291,6 +325,41 @@ export default function FileCenter() {
             readOnly
             autoSize={{ minRows: 8, maxRows: 16 }}
           />
+        </Space>
+      </Modal>
+
+      <Modal
+        title={chunkPreviewFile?.original_name ? `${chunkPreviewFile.original_name} · chunk 预览` : 'chunk 预览'}
+        open={!!chunkPreviewFile}
+        onCancel={() => setChunkPreviewFile(null)}
+        footer={null}
+        width={760}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size={12}>
+          <Text type="secondary">
+            已生成 {chunkPreviewFile?.chunk_count ?? 0} 个 chunk。当前仅展示前几个预览，不代表 Embedding 或 RAG 已完成。
+          </Text>
+          {(chunkPreviewFile?.chunk_preview || []).map((chunk) => (
+            <div
+              key={chunk.chunk_id}
+              style={{
+                border: '1px solid #f0f0f0',
+                borderRadius: 8,
+                padding: 12,
+                background: '#fafafa',
+              }}
+            >
+              <Text strong style={{ fontSize: 13 }}>
+                Chunk {chunk.chunk_index + 1} · {chunk.char_count} 字符
+              </Text>
+              <Input.TextArea
+                value={chunk.content}
+                readOnly
+                autoSize={{ minRows: 3, maxRows: 8 }}
+                style={{ marginTop: 8 }}
+              />
+            </div>
+          ))}
         </Space>
       </Modal>
     </div>

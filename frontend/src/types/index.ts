@@ -37,16 +37,27 @@ export interface Message {
 }
 
 /** 文件 */
+export interface DocumentChunk {
+  chunk_id: string;
+  file_id: string;
+  chunk_index: number;
+  content: string;
+  char_count: number;
+}
+
 export interface FileItem {
   id: string;
   original_name: string;
-  status: 'uploaded' | 'processing' | 'ready' | 'failed';
+  status: 'uploaded' | 'processing' | 'ready' | 'chunked' | 'failed';
   size_bytes: number;
   created_at: string;
   extension: string;
   text_preview?: string;
   char_count?: number;
   parsed_at?: string;
+  chunk_count?: number;
+  chunk_preview?: DocumentChunk[];
+  chunked_at?: string;
   error_message?: string;
 }
 

@@ -11,6 +11,18 @@ class DocumentParserService:
 
     def parse(self, file_id: str, extension: str) -> ParsedFileResponse:
         normalized_extension = extension.lower().lstrip(".")
+        normalized_text = self.parse_text(file_id, normalized_extension)
+
+        return ParsedFileResponse(
+            file_id=file_id,
+            status="parsed",
+            extension=normalized_extension,
+            text_preview=self._build_preview(normalized_text),
+            char_count=len(normalized_text),
+        )
+
+    def parse_text(self, file_id: str, extension: str) -> str:
+        normalized_extension = extension.lower().lstrip(".")
         if normalized_extension not in self.supported_extensions:
             raise DocumentParseError(
                 f"Unsupported parse file type. Allowed: {', '.join(sorted(self.supported_extensions))}"
@@ -27,13 +39,7 @@ class DocumentParserService:
                 "No text content extracted. Scanned PDFs and image-only documents are not supported in v0.4"
             )
 
-        return ParsedFileResponse(
-            file_id=file_id,
-            status="parsed",
-            extension=normalized_extension,
-            text_preview=self._build_preview(normalized_text),
-            char_count=len(normalized_text),
-        )
+        return normalized_text
 
     def _parse_by_extension(self, file_path: Path, extension: str) -> str:
         if extension == "txt":
