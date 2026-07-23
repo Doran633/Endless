@@ -3,3 +3,5 @@ uvicorn
 pydantic
 python-dotenv
 python-multipart
+python-docx
+pypdf

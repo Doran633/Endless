@@ -44,6 +44,10 @@ export interface FileItem {
   size_bytes: number;
   created_at: string;
   extension: string;
+  text_preview?: string;
+  char_count?: number;
+  parsed_at?: string;
+  error_message?: string;
 }
 
 /** PPT 任务 */

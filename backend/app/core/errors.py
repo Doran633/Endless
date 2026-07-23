@@ -26,3 +26,13 @@ class FileValidationError(AppError):
 class FileStorageError(AppError):
     def __init__(self, message: str = "File storage failed") -> None:
         super().__init__(message=message, code=42002, status_code=500)
+
+
+class DocumentNotFoundError(AppError):
+    def __init__(self, message: str = "Uploaded file not found") -> None:
+        super().__init__(message=message, code=44001, status_code=404)
+
+
+class DocumentParseError(AppError):
+    def __init__(self, message: str = "Failed to parse document") -> None:
+        super().__init__(message=message, code=44002, status_code=400)

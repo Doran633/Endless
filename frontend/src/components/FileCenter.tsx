@@ -23,9 +23,10 @@ import {
   LoadingOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
+  SearchOutlined,
+  EyeOutlined,
 } from '@ant-design/icons';
 import { useFileStore } from '../stores/fileStore';
-import { useChatStore } from '../stores/chatStore';
 import { usePptStore } from '../stores/pptStore';
 import type { FileItem } from '../types';
 
@@ -34,7 +35,7 @@ const { Title, Text } = Typography;
 const statusMap: Record<FileItem['status'], { color: string; text: string }> = {
   uploaded: { color: 'default', text: '已上传' },
   processing: { color: 'processing', text: '解析中' },
-  ready: { color: 'success', text: '已就绪' },
+  ready: { color: 'success', text: '已解析' },
   failed: { color: 'error', text: '解析失败' },
 };
 
@@ -58,14 +59,13 @@ function FileIcon({ ext }: { ext: string }) {
 }
 
 export default function FileCenter() {
-  const { files, uploadFile, removeFile } = useFileStore();
-  const createSession = useChatStore((s) => s.createSession);
-  const selectSession = useChatStore((s) => s.selectSession);
+  const { files, uploadFile, parseFile, removeFile } = useFileStore();
   const { jobs, createJob } = usePptStore();
   const [uploading, setUploading] = useState(false);
   const [pptModalOpen, setPptModalOpen] = useState(false);
   const [pptTitle, setPptTitle] = useState('');
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
+  const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
 
   const handleUpload = async (file: File) => {
     setUploading(true);
@@ -82,23 +82,23 @@ export default function FileCenter() {
   };
 
   const handleStartQa = (file: FileItem) => {
-    if (file.status !== 'ready') {
-      message.warning('文件解析功能将在下一阶段开放');
-      return;
-    }
-    const sessionId = createSession('file', file.id);
-    selectSession(sessionId);
-    message.success(`已创建"${file.original_name}"的问答会话`);
+    file;
+    message.warning('RAG 问答将在下一阶段开放');
   };
 
   const handleGeneratePpt = (file: FileItem) => {
-    if (file.status !== 'ready') {
-      message.warning('PPT 生成暂不属于当前 v0.3 范围');
-      return;
+    file;
+    message.warning('PPT 生成暂不属于当前 v0.4 范围');
+  };
+
+  const handleParse = async (file: FileItem) => {
+    try {
+      await parseFile(file.id);
+      message.success(`"${file.original_name}" 解析完成`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '文档解析失败';
+      message.error(errorMessage);
     }
-    setSelectedFileId(file.id);
-    setPptTitle('');
-    setPptModalOpen(true);
   };
 
   const handlePptConfirm = async () => {
@@ -125,7 +125,16 @@ export default function FileCenter() {
             <Text type="secondary" style={{ fontSize: 11 }}>
               {formatSize(record.size_bytes)} · 上传于{' '}
               {new Date(record.created_at).toLocaleString('zh-CN')}
+              {typeof record.char_count === 'number' && ` · ${record.char_count} 字符`}
             </Text>
+            {record.error_message && (
+              <>
+                <br />
+                <Text type="danger" style={{ fontSize: 11 }}>
+                  {record.error_message}
+                </Text>
+              </>
+            )}
           </div>
         </Space>
       ),
@@ -156,10 +165,29 @@ export default function FileCenter() {
         const job = jobs.find((j) => j.fileId === record.id);
         return (
           <Space size={4} wrap>
+            {(record.status === 'uploaded' || record.status === 'failed') && (
+              <Button
+                size="small"
+                type="link"
+                icon={<SearchOutlined />}
+                onClick={() => handleParse(record)}
+              >
+                解析
+              </Button>
+            )}
+            {record.status === 'ready' && (
+              <Button
+                size="small"
+                type="link"
+                icon={<EyeOutlined />}
+                onClick={() => setPreviewFile(record)}
+              >
+                预览
+              </Button>
+            )}
             <Button
               size="small"
               type="link"
-              disabled={record.status !== 'ready'}
               onClick={() => handleStartQa(record)}
             >
               💬 问答
@@ -167,7 +195,6 @@ export default function FileCenter() {
             <Button
               size="small"
               type="link"
-              disabled={record.status !== 'ready'}
               onClick={() => handleGeneratePpt(record)}
             >
               📊 PPT
@@ -266,8 +293,8 @@ export default function FileCenter() {
           />
         )}
 
-        {/* v0.3 only uploads files; parsing starts in the next milestone. */}
-        {files.some((f) => f.status === 'uploaded') && (
+        {/* v0.4 parses documents only; RAG indexing starts in a later milestone. */}
+        {files.some((f) => f.status === 'uploaded' || f.status === 'ready') && (
           <div
             style={{
               marginTop: 16,
@@ -280,7 +307,7 @@ export default function FileCenter() {
             <Space>
               <LoadingOutlined style={{ color: '#fa8c16' }} />
               <Text style={{ color: '#d46b08', fontSize: 13 }}>
-                文件已上传。文档解析和问答将在下一阶段开放。
+                当前支持文档解析预览。RAG 问答将在下一阶段开放。
               </Text>
             </Space>
           </div>
@@ -309,6 +336,25 @@ export default function FileCenter() {
             value={pptTitle}
             onChange={(e) => setPptTitle(e.target.value)}
             onPressEnter={handlePptConfirm}
+          />
+        </Space>
+      </Modal>
+
+      <Modal
+        title={previewFile?.original_name || '文档预览'}
+        open={!!previewFile}
+        onCancel={() => setPreviewFile(null)}
+        footer={null}
+        width={720}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size={12}>
+          <Text type="secondary">
+            已解析 {previewFile?.char_count ?? 0} 个字符。当前仅展示文本预览，不代表 RAG 索引已完成。
+          </Text>
+          <Input.TextArea
+            value={previewFile?.text_preview || ''}
+            readOnly
+            autoSize={{ minRows: 8, maxRows: 16 }}
           />
         </Space>
       </Modal>
