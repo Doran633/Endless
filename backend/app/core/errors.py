@@ -16,3 +16,13 @@ class LLMConfigError(AppError):
 class LLMProviderError(AppError):
     def __init__(self, message: str = "LLM provider request failed") -> None:
         super().__init__(message=message, code=43002, status_code=502)
+
+
+class FileValidationError(AppError):
+    def __init__(self, message: str) -> None:
+        super().__init__(message=message, code=42001, status_code=400)
+
+
+class FileStorageError(AppError):
+    def __init__(self, message: str = "File storage failed") -> None:
+        super().__init__(message=message, code=42002, status_code=500)

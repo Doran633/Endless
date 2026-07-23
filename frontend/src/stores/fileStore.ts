@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { FileItem } from '../types';
 import { mockFiles } from '../api/mock';
+import { uploadFile as uploadFileApi } from '../api/fileApi';
 
 interface FileState {
   files: FileItem[];
@@ -17,33 +18,14 @@ export const useFileStore = create<FileState>((set, get) => ({
 
   uploadFile: async (file: File) => {
     set({ uploading: true });
-
-    const ext = file.name.split('.').pop() ?? 'unknown';
-    const newFile: FileItem = {
-      id: `file-${Date.now()}`,
-      original_name: file.name,
-      extension: ext,
-      status: 'processing',
-      size_bytes: file.size,
-      created_at: new Date().toISOString(),
-    };
-
-    // 立即显示为 processing
-    set((state) => ({
-      files: [newFile, ...state.files],
-      uploading: false,
-    }));
-
-    // 模拟解析延迟（大文件稍长）
-    const delay = Math.min(2000, Math.max(800, Math.floor(file.size / 10000)));
-    await new Promise((r) => setTimeout(r, delay));
-
-    // 状态变为 ready
-    set((state) => ({
-      files: state.files.map((f) =>
-        f.id === newFile.id ? { ...f, status: 'ready' as const } : f
-      ),
-    }));
+    try {
+      const uploadedFile = await uploadFileApi(file);
+      set((state) => ({
+        files: [uploadedFile, ...state.files],
+      }));
+    } finally {
+      set({ uploading: false });
+    }
   },
 
   removeFile: (id: string) => {

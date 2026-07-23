@@ -71,9 +71,10 @@ export default function FileCenter() {
     setUploading(true);
     try {
       await uploadFile(file);
-      message.success(`"${file.name}" 上传成功，正在后台解析`);
-    } catch {
-      message.error('上传失败');
+      message.success(`"${file.name}" 上传成功`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '上传失败';
+      message.error(errorMessage);
     } finally {
       setUploading(false);
     }
@@ -82,7 +83,7 @@ export default function FileCenter() {
 
   const handleStartQa = (file: FileItem) => {
     if (file.status !== 'ready') {
-      message.warning('请等待文件解析完成');
+      message.warning('文件解析功能将在下一阶段开放');
       return;
     }
     const sessionId = createSession('file', file.id);
@@ -92,7 +93,7 @@ export default function FileCenter() {
 
   const handleGeneratePpt = (file: FileItem) => {
     if (file.status !== 'ready') {
-      message.warning('请等待文件解析完成');
+      message.warning('PPT 生成暂不属于当前 v0.3 范围');
       return;
     }
     setSelectedFileId(file.id);
@@ -265,8 +266,8 @@ export default function FileCenter() {
           />
         )}
 
-        {/* In-progress parsing indicator */}
-        {files.some((f) => f.status === 'processing') && (
+        {/* v0.3 only uploads files; parsing starts in the next milestone. */}
+        {files.some((f) => f.status === 'uploaded') && (
           <div
             style={{
               marginTop: 16,
@@ -279,7 +280,7 @@ export default function FileCenter() {
             <Space>
               <LoadingOutlined style={{ color: '#fa8c16' }} />
               <Text style={{ color: '#d46b08', fontSize: 13 }}>
-                文件正在后台解析中，解析完成后即可进行问答和 PPT 生成
+                文件已上传。文档解析和问答将在下一阶段开放。
               </Text>
             </Space>
           </div>
