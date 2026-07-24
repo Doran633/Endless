@@ -1,9 +1,10 @@
 from fastapi import APIRouter, File, UploadFile
 
 from app.core.responses import ok
-from app.schemas.file import ChunkFileRequest, ParseFileRequest
+from app.schemas.file import ChunkFileRequest, EmbedFileRequest, ParseFileRequest
 from app.services.chunk_service import ChunkService
 from app.services.document_parser_service import DocumentParserService
+from app.services.embedding_service import EmbeddingService
 from app.services.file_service import FileService
 
 
@@ -26,4 +27,12 @@ async def parse_file(file_id: str, request: ParseFileRequest) -> dict[str, objec
 async def chunk_file(file_id: str, request: ChunkFileRequest) -> dict[str, object]:
     document_text = DocumentParserService().parse_text(file_id, request.extension)
     result = ChunkService().chunk_text(file_id, document_text)
+    return ok(result.model_dump())
+
+
+@router.post("/files/{file_id}/embeddings")
+async def embed_file(file_id: str, request: EmbedFileRequest) -> dict[str, object]:
+    document_text = DocumentParserService().parse_text(file_id, request.extension)
+    chunks = ChunkService().create_chunks(file_id, document_text)
+    result = EmbeddingService().embed_chunks(file_id, chunks)
     return ok(result.model_dump())

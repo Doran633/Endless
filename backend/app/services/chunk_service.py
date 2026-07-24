@@ -8,6 +8,15 @@ class ChunkService:
     preview_limit = 3
 
     def chunk_text(self, file_id: str, text: str) -> ChunkFileResponse:
+        chunks = self.create_chunks(file_id, text)
+        return ChunkFileResponse(
+            file_id=file_id,
+            status="chunked",
+            chunk_count=len(chunks),
+            chunk_preview=chunks[: self.preview_limit],
+        )
+
+    def create_chunks(self, file_id: str, text: str) -> list[DocumentChunk]:
         normalized_text = self._normalize_text(text)
         if not normalized_text:
             raise ChunkError("Cannot chunk empty document text")
@@ -16,12 +25,7 @@ class ChunkService:
         if not chunks:
             raise ChunkError("No chunks generated from document text")
 
-        return ChunkFileResponse(
-            file_id=file_id,
-            status="chunked",
-            chunk_count=len(chunks),
-            chunk_preview=chunks[: self.preview_limit],
-        )
+        return chunks
 
     def _normalize_text(self, text: str) -> str:
         paragraphs = [paragraph.strip() for paragraph in text.split("\n") if paragraph.strip()]

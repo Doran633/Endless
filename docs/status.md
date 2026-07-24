@@ -4,9 +4,9 @@
 
 ## 1. 当前版本
 
-当前版本：`v0.5.0`
+当前版本：`v0.6.0`
 
-当前阶段：文本切块闭环阶段。
+当前阶段：Embedding 抽象与调用闭环阶段。
 
 当前状态判断：
 
@@ -21,8 +21,9 @@
 - 已完成最小文档解析闭环：后端读取 `backend/uploads/` 中的文件，解析 TXT / DOCX / 可复制文本型 PDF，前端展示解析状态和文本预览。
 - 已增强 DOCX 表格解析：保留行列分隔，支持表格单元格中的段落和嵌套表格文本。
 - 已完成文本切块闭环：后端将解析全文切成 chunks，前端展示 chunk 数量和预览。
+- 已完成 mock embedding 向量化闭环：后端为 chunks 生成稳定 mock vectors，前端展示 embedding 数量、维度和向量预览。
 - 已完成北辰agent UI 简化优化：统一产品命名，聚焦“对话 + 文件中心”，隐藏当前暂不实现的 PPT 入口。
-- Embedding、RAG 问答、数据库持久化尚未开始实现。
+- 向量存储、RAG 问答、数据库持久化尚未开始实现。
 
 ## 2. 当前 v1.0 目标
 
@@ -72,6 +73,8 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 - 文件解析结果预览。
 - 文件切块触发入口。
 - chunk 数量和 chunk 预览展示。
+- 文件向量化触发入口。
+- embedding 数量、维度和向量预览展示。
 - 北辰agent 品牌界面。
 - Zustand 状态管理。
 - 本地 Mock API：`frontend/src/api/mock.ts`。
@@ -84,10 +87,12 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 - 前端文件上传已经调用后端 `/api/v1/files`。
 - 前端文件解析已经调用后端 `/api/v1/files/{file_id}/parse`。
 - 前端文件切块已经调用后端 `/api/v1/files/{file_id}/chunks`。
+- 前端文件向量化已经调用后端 `/api/v1/files/{file_id}/embeddings`。
 - 前端会话、历史消息和初始文件列表仍使用 Mock 数据。
 - 文件列表刷新、文件删除和文件持久化列表接口尚未实现。
 - 解析结果只保存在当前前端状态中，刷新页面后不会恢复。
 - chunk 结果只保存在当前前端状态中，刷新页面后不会恢复。
+- embedding 结果只保存在当前前端状态中，刷新页面后不会恢复。
 
 ### 3.2 后端基础聊天模块
 
@@ -155,6 +160,15 @@ v1.0 目标是构建一个独立网页版 AI 助手。
   - `chunk_index`
   - `content`
   - `char_count`
+- 文件向量化接口：`POST /api/v1/files/{file_id}/embeddings`。
+- `EmbeddingService` embedding 业务边界。
+- `EmbeddingProvider` 抽象接口。
+- `MockEmbeddingProvider` 稳定 mock embedding 实现。
+- mock embedding 默认维度：`16`。
+- embedding 响应字段：
+  - `embedding_count`
+  - `embedding_dimension`
+  - `embedding_preview`
 - 文档解析响应字段：
   - `file_id`
   - `status`
@@ -178,6 +192,8 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 - PDF 解析仅支持可复制文本型 PDF，不支持扫描件 OCR。
 - chunk 结果尚未写入数据库或向量存储。
 - 当前切块策略是字符数切块，不是 tokenizer-aware 或 semantic chunk。
+- embedding 结果尚未写入向量数据库。
+- 当前 embedding 是 mock vector，不代表真实语义。
 
 ### 3.4 项目文档
 
@@ -199,6 +215,8 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 - v0.4.1 DOCX 表格解析增强报告。
 - v0.5 文本切块计划。
 - v0.5 文本切块报告。
+- v0.6 Embedding 抽象与调用计划。
+- v0.6 Embedding 抽象与调用报告。
 - v0.4.2 北辰agent UI 简化优化。
 - v1.0 路线图。
 - 文档同步审查报告。
@@ -212,21 +230,20 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 
 当前正在推进的模块：
 
-- v0.5 文本切块闭环收尾。
+- v0.6 Embedding 抽象与调用闭环收尾。
 - 文档状态同步。
 - RAG 前置模块规划。
 
 下一步最适合推进：
 
-- 进行 v0.5 浏览器联调：上传、解析、切块并查看 chunk 预览。
+- 进行 v0.6 浏览器联调：上传、解析、切块、向量化并查看 embedding 预览。
 - 补充后端文件上传和解析接口的最小自动化测试。
-- 进入 v0.6 Embedding 抽象与调用设计。
+- 进入 v0.7 VectorStore 向量存储设计。
 
 ## 5. 未开始模块
 
 当前尚未开始实现：
 
-- Embedding 调用。
 - 向量数据库或向量存储抽象。
 - RAG 检索服务。
 - 基于文件的问答接口。
@@ -292,7 +309,7 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 
 当前项目不是完整可用的 AI 应用 MVP，而是：
 
-**北辰agent 简洁 UI + 后端真实 LLM 聊天闭环 + 后端本地文件上传闭环 + 最小文档解析闭环 + 文本切块闭环 + v1.0 文档规划。**
+**北辰agent 简洁 UI + 后端真实 LLM 聊天闭环 + 后端本地文件上传闭环 + 最小文档解析闭环 + 文本切块闭环 + mock embedding 闭环 + v1.0 文档规划。**
 
 项目已经具备继续演进的基础边界：
 
@@ -304,11 +321,12 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 - 文件上传已经通过 `FileService` 预留后续文档解析、RAG 索引和数据库持久化入口。
 - 文档解析已经通过 `DocumentParserService` 预留后续 chunk、embedding 和 RAG 入口。
 - 文本切块已经通过 `ChunkService` 预留后续 embedding 和向量检索入口。
+- Embedding 已经通过 `EmbeddingService` 和 `EmbeddingProvider` 预留后续真实 embedding provider、VectorStore 和 RAG 入口。
 
 当前最大缺口是：
 
-- Embedding、向量存储和 RAG 主链路尚未开始。
+- 向量存储、向量检索和 RAG 主链路尚未开始。
 - 数据库和持久化能力尚未建立。
 - AI 数据分析仍只是规划能力，尚未进入实现。
 
-因此，下一阶段应进入 v0.6 Embedding 抽象与调用规划；AI 数据分析继续保留规划边界，不挤占当前主链路。
+因此，下一阶段应进入 v0.7 VectorStore 向量存储规划；AI 数据分析继续保留规划边界，不挤占当前主链路。

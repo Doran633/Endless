@@ -39,3 +39,22 @@ class ChunkFileResponse(BaseModel):
     status: str
     chunk_count: int
     chunk_preview: list[DocumentChunk]
+
+
+class EmbedFileRequest(BaseModel):
+    extension: str
+
+
+class EmbeddingPreview(BaseModel):
+    chunk_id: str
+    chunk_index: int
+    vector_preview: list[float]
+
+
+class EmbedFileResponse(BaseModel):
+    file_id: str
+    status: str
+    chunk_count: int
+    embedding_count: int
+    embedding_dimension: int
+    embedding_preview: list[EmbeddingPreview]

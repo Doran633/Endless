@@ -41,3 +41,13 @@ class DocumentParseError(AppError):
 class ChunkError(AppError):
     def __init__(self, message: str = "Failed to chunk document") -> None:
         super().__init__(message=message, code=45001, status_code=400)
+
+
+class EmbeddingConfigError(AppError):
+    def __init__(self, message: str) -> None:
+        super().__init__(message=message, code=46001, status_code=400)
+
+
+class EmbeddingProviderError(AppError):
+    def __init__(self, message: str = "Embedding provider request failed") -> None:
+        super().__init__(message=message, code=46002, status_code=502)

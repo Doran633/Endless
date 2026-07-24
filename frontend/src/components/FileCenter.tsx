@@ -23,6 +23,7 @@ import {
   SearchOutlined,
   EyeOutlined,
   SplitCellsOutlined,
+  ClusterOutlined,
 } from '@ant-design/icons';
 import { useFileStore } from '../stores/fileStore';
 import type { FileItem } from '../types';
@@ -34,6 +35,7 @@ const statusMap: Record<FileItem['status'], { color: string; text: string }> = {
   processing: { color: 'processing', text: '处理中' },
   ready: { color: 'success', text: '已解析' },
   chunked: { color: 'blue', text: '已切块' },
+  embedded: { color: 'purple', text: '已向量化' },
   failed: { color: 'error', text: '解析失败' },
 };
 
@@ -57,10 +59,11 @@ function FileIcon({ ext }: { ext: string }) {
 }
 
 export default function FileCenter() {
-  const { files, uploadFile, parseFile, chunkFile, removeFile } = useFileStore();
+  const { files, uploadFile, parseFile, chunkFile, embedFile, removeFile } = useFileStore();
   const [uploading, setUploading] = useState(false);
   const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
   const [chunkPreviewFile, setChunkPreviewFile] = useState<FileItem | null>(null);
+  const [embeddingPreviewFile, setEmbeddingPreviewFile] = useState<FileItem | null>(null);
 
   const handleUpload = async (file: File) => {
     setUploading(true);
@@ -101,6 +104,16 @@ export default function FileCenter() {
     }
   };
 
+  const handleEmbed = async (file: FileItem) => {
+    try {
+      await embedFile(file.id);
+      message.success(`"${file.original_name}" 向量化完成`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '向量化失败';
+      message.error(errorMessage);
+    }
+  };
+
   const columns = [
     {
       title: '文件名',
@@ -119,6 +132,7 @@ export default function FileCenter() {
               {new Date(record.created_at).toLocaleString('zh-CN')}
               {typeof record.char_count === 'number' && ` · ${record.char_count} 字符`}
               {typeof record.chunk_count === 'number' && ` · ${record.chunk_count} chunks`}
+              {typeof record.embedding_dimension === 'number' && ` · ${record.embedding_dimension} 维`}
             </Text>
             {record.error_message && (
               <>
@@ -142,7 +156,7 @@ export default function FileCenter() {
         const icon =
           status === 'processing' ? (
             <LoadingOutlined />
-          ) : status === 'ready' || status === 'chunked' ? (
+          ) : status === 'ready' || status === 'chunked' || status === 'embedded' ? (
             <CheckCircleOutlined />
           ) : status === 'failed' ? (
             <CloseCircleOutlined />
@@ -177,7 +191,7 @@ export default function FileCenter() {
                 切块
               </Button>
             )}
-            {(record.status === 'ready' || record.status === 'chunked') && (
+            {(record.status === 'ready' || record.status === 'chunked' || record.status === 'embedded') && (
               <Button
                 size="small"
                 type="link"
@@ -191,10 +205,30 @@ export default function FileCenter() {
               <Button
                 size="small"
                 type="link"
+                icon={<ClusterOutlined />}
+                onClick={() => handleEmbed(record)}
+              >
+                向量化
+              </Button>
+            )}
+            {(record.status === 'chunked' || record.status === 'embedded') && (
+              <Button
+                size="small"
+                type="link"
                 icon={<SplitCellsOutlined />}
                 onClick={() => setChunkPreviewFile(record)}
               >
                 chunks
+              </Button>
+            )}
+            {record.status === 'embedded' && (
+              <Button
+                size="small"
+                type="link"
+                icon={<ClusterOutlined />}
+                onClick={() => setEmbeddingPreviewFile(record)}
+              >
+                vectors
               </Button>
             )}
             <Button
@@ -289,7 +323,7 @@ export default function FileCenter() {
         )}
 
         {/* v0.5 prepares chunks only; embedding and RAG start in later milestones. */}
-        {files.some((f) => f.status === 'uploaded' || f.status === 'ready' || f.status === 'chunked') && (
+        {files.some((f) => ['uploaded', 'ready', 'chunked', 'embedded'].includes(f.status)) && (
           <div
             style={{
               marginTop: 16,
@@ -302,7 +336,7 @@ export default function FileCenter() {
             <Space>
               <LoadingOutlined style={{ color: '#fa8c16' }} />
               <Text style={{ color: '#d46b08', fontSize: 13 }}>
-                当前支持文档解析和文本切块。Embedding 与 RAG 问答将在后续阶段开放。
+                当前支持文档解析、文本切块和 mock 向量化。向量存储与 RAG 问答将在后续阶段开放。
               </Text>
             </Space>
           </div>
@@ -356,6 +390,46 @@ export default function FileCenter() {
                 value={chunk.content}
                 readOnly
                 autoSize={{ minRows: 3, maxRows: 8 }}
+                style={{ marginTop: 8 }}
+              />
+            </div>
+          ))}
+        </Space>
+      </Modal>
+
+      <Modal
+        title={
+          embeddingPreviewFile?.original_name
+            ? `${embeddingPreviewFile.original_name} · embedding 预览`
+            : 'embedding 预览'
+        }
+        open={!!embeddingPreviewFile}
+        onCancel={() => setEmbeddingPreviewFile(null)}
+        footer={null}
+        width={760}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size={12}>
+          <Text type="secondary">
+            已生成 {embeddingPreviewFile?.embedding_count ?? 0} 个 embedding，
+            维度 {embeddingPreviewFile?.embedding_dimension ?? 0}。当前仅展示向量前几位，不代表向量存储或 RAG 已完成。
+          </Text>
+          {(embeddingPreviewFile?.embedding_preview || []).map((embedding) => (
+            <div
+              key={embedding.chunk_id}
+              style={{
+                border: '1px solid #f0f0f0',
+                borderRadius: 8,
+                padding: 12,
+                background: '#fafafa',
+              }}
+            >
+              <Text strong style={{ fontSize: 13 }}>
+                Chunk {embedding.chunk_index + 1}
+              </Text>
+              <Input.TextArea
+                value={`[${embedding.vector_preview.join(', ')}]`}
+                readOnly
+                autoSize={{ minRows: 2, maxRows: 4 }}
                 style={{ marginTop: 8 }}
               />
             </div>

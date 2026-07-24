@@ -4,6 +4,7 @@ import { mockFiles } from '../api/mock';
 import { uploadFile as uploadFileApi } from '../api/fileApi';
 import { parseFile as parseFileApi } from '../api/fileApi';
 import { chunkFile as chunkFileApi } from '../api/fileApi';
+import { embedFile as embedFileApi } from '../api/fileApi';
 
 interface FileState {
   files: FileItem[];
@@ -12,6 +13,7 @@ interface FileState {
   uploadFile: (file: File) => Promise<void>;
   parseFile: (id: string) => Promise<void>;
   chunkFile: (id: string) => Promise<void>;
+  embedFile: (id: string) => Promise<void>;
   removeFile: (id: string) => void;
   getFileById: (id: string) => FileItem | undefined;
 }
@@ -103,6 +105,50 @@ export const useFileStore = create<FileState>((set, get) => ({
       }));
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '文本切块失败';
+      set((state) => ({
+        files: state.files.map((file) =>
+          file.id === id ? { ...file, status: 'failed', error_message: errorMessage } : file
+        ),
+      }));
+      throw error;
+    }
+  },
+
+  embedFile: async (id: string) => {
+    const targetFile = get().files.find((file) => file.id === id);
+    if (!targetFile) {
+      throw new Error('文件不存在');
+    }
+
+    if (targetFile.status !== 'chunked' && targetFile.status !== 'embedded') {
+      throw new Error('请先完成文本切块');
+    }
+
+    set((state) => ({
+      files: state.files.map((file) =>
+        file.id === id ? { ...file, status: 'processing', error_message: undefined } : file
+      ),
+    }));
+
+    try {
+      const embeddedFile = await embedFileApi(id, targetFile.extension);
+      set((state) => ({
+        files: state.files.map((file) =>
+          file.id === id
+            ? {
+                ...file,
+                status: 'embedded',
+                chunk_count: embeddedFile.chunk_count,
+                embedding_count: embeddedFile.embedding_count,
+                embedding_dimension: embeddedFile.embedding_dimension,
+                embedding_preview: embeddedFile.embedding_preview,
+                embedded_at: new Date().toISOString(),
+              }
+            : file
+        ),
+      }));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '向量化失败';
       set((state) => ({
         files: state.files.map((file) =>
           file.id === id ? { ...file, status: 'failed', error_message: errorMessage } : file

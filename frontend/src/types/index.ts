@@ -45,10 +45,16 @@ export interface DocumentChunk {
   char_count: number;
 }
 
+export interface EmbeddingPreview {
+  chunk_id: string;
+  chunk_index: number;
+  vector_preview: number[];
+}
+
 export interface FileItem {
   id: string;
   original_name: string;
-  status: 'uploaded' | 'processing' | 'ready' | 'chunked' | 'failed';
+  status: 'uploaded' | 'processing' | 'ready' | 'chunked' | 'embedded' | 'failed';
   size_bytes: number;
   created_at: string;
   extension: string;
@@ -58,6 +64,10 @@ export interface FileItem {
   chunk_count?: number;
   chunk_preview?: DocumentChunk[];
   chunked_at?: string;
+  embedding_count?: number;
+  embedding_dimension?: number;
+  embedding_preview?: EmbeddingPreview[];
+  embedded_at?: string;
   error_message?: string;
 }
 

@@ -1,4 +1,4 @@
-import type { DocumentChunk, FileItem } from '../types';
+import type { DocumentChunk, EmbeddingPreview, FileItem } from '../types';
 
 interface ApiResponse<T> {
   code: number;
@@ -72,6 +72,33 @@ export async function chunkFile(fileId: string, extension: string): Promise<Chun
 
   if (!response.ok || payload.code !== 0 || !payload.data) {
     throw new Error(payload.message || '文本切块失败');
+  }
+
+  return payload.data;
+}
+
+export interface EmbedFileResponse {
+  file_id: string;
+  status: 'embedded';
+  chunk_count: number;
+  embedding_count: number;
+  embedding_dimension: number;
+  embedding_preview: EmbeddingPreview[];
+}
+
+export async function embedFile(fileId: string, extension: string): Promise<EmbedFileResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/files/${fileId}/embeddings`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ extension }),
+  });
+
+  const payload = (await response.json()) as ApiResponse<EmbedFileResponse>;
+
+  if (!response.ok || payload.code !== 0 || !payload.data) {
+    throw new Error(payload.message || '向量化失败');
   }
 
   return payload.data;

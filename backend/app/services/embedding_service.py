@@ -1,0 +1,55 @@
+from app.core.config import settings
+from app.core.errors import EmbeddingConfigError, EmbeddingProviderError
+from app.embedding.base import EmbeddingProvider
+from app.embedding.mock_provider import MockEmbeddingProvider
+from app.schemas.file import DocumentChunk, EmbedFileResponse, EmbeddingPreview
+
+
+class EmbeddingService:
+    preview_limit = 3
+    vector_preview_limit = 3
+
+    def __init__(self, provider: EmbeddingProvider | None = None) -> None:
+        self.provider = provider or self._create_provider()
+
+    def embed_chunks(self, file_id: str, chunks: list[DocumentChunk]) -> EmbedFileResponse:
+        if not chunks:
+            raise EmbeddingProviderError("No chunks provided for embedding")
+
+        vectors = self.provider.embed_texts([chunk.content for chunk in chunks])
+        if len(vectors) != len(chunks):
+            raise EmbeddingProviderError("Embedding provider returned an unexpected vector count")
+
+        dimension = self._validate_vectors(vectors)
+        previews = [
+            EmbeddingPreview(
+                chunk_id=chunk.chunk_id,
+                chunk_index=chunk.chunk_index,
+                vector_preview=vectors[index][: self.vector_preview_limit],
+            )
+            for index, chunk in enumerate(chunks[: self.preview_limit])
+        ]
+
+        return EmbedFileResponse(
+            file_id=file_id,
+            status="embedded",
+            chunk_count=len(chunks),
+            embedding_count=len(vectors),
+            embedding_dimension=dimension,
+            embedding_preview=previews,
+        )
+
+    def _create_provider(self) -> EmbeddingProvider:
+        if settings.embedding_provider == "mock":
+            return MockEmbeddingProvider(settings.embedding_dimension)
+        raise EmbeddingConfigError(f"Unsupported embedding provider: {settings.embedding_provider}")
+
+    def _validate_vectors(self, vectors: list[list[float]]) -> int:
+        if not vectors or not vectors[0]:
+            raise EmbeddingProviderError("Embedding provider returned empty vectors")
+
+        dimension = len(vectors[0])
+        if any(len(vector) != dimension for vector in vectors):
+            raise EmbeddingProviderError("Embedding provider returned inconsistent vector dimensions")
+
+        return dimension
