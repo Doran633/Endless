@@ -2,6 +2,7 @@ from app.core.config import settings
 from app.core.errors import EmbeddingConfigError, EmbeddingProviderError
 from app.embedding.base import EmbeddingProvider
 from app.embedding.mock_provider import MockEmbeddingProvider
+from app.embedding.openai_provider import OpenAIEmbeddingProvider
 from app.schemas.file import DocumentChunk, EmbedFileResponse, EmbeddingPreview
 
 
@@ -50,6 +51,8 @@ class EmbeddingService:
     def _create_provider(self) -> EmbeddingProvider:
         if settings.embedding_provider == "mock":
             return MockEmbeddingProvider(settings.embedding_dimension)
+        if settings.embedding_provider == "openai":
+            return OpenAIEmbeddingProvider()
         raise EmbeddingConfigError(f"Unsupported embedding provider: {settings.embedding_provider}")
 
     def _validate_vectors(self, vectors: list[list[float]]) -> int:

@@ -25,6 +25,8 @@ class Settings:
     embedding_timeout_seconds: int = int(os.getenv("EMBEDDING_TIMEOUT_SECONDS", "60"))
     openai_api_key: str | None = os.getenv("OPENAI_API_KEY")
     openai_base_url: str = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+    embedding_api_key: str | None = os.getenv("EMBEDDING_API_KEY") or openai_api_key
+    embedding_base_url: str = os.getenv("EMBEDDING_BASE_URL") or openai_base_url
     upload_dir: Path = BACKEND_DIR / os.getenv("UPLOAD_DIR", "uploads")
     vector_store_dir: Path = BACKEND_DIR / os.getenv("VECTOR_STORE_DIR", "vector_store")
     max_upload_size_mb: int = int(os.getenv("MAX_UPLOAD_SIZE_MB", "20"))

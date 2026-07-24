@@ -4,9 +4,9 @@
 
 ## 1. 当前版本
 
-当前版本：`v0.9.1`
+当前版本：`v1.0.0`
 
-当前阶段：Chat-side RAG QA 体验优化阶段。
+当前阶段：Real Embedding MVP 阶段。
 
 当前状态判断：
 
@@ -22,11 +22,13 @@
 - 已增强 DOCX 表格解析：保留行列分隔，支持表格单元格中的段落和嵌套表格文本。
 - 已完成文本切块闭环：后端将解析全文切成 chunks，前端展示 chunk 数量和预览。
 - 已完成 mock embedding 向量化闭环：后端为 chunks 生成稳定 mock vectors，前端展示 embedding 数量、维度和向量预览。
-- 已完成聊天侧文件接入体验优化：聊天输入区可以上传文件，并自动串联上传、解析、切块和 mock 向量化流程。
-- 已完成本地 VectorStore 闭环：后端将 chunks 和 mock embeddings 保存到 `backend/vector_store/` 的 JSON 索引文件，前端展示 indexed 状态和索引摘要。
-- 已完成最小 Retrieval 检索闭环：后端基于本地 VectorStore 和 mock query embedding 计算 cosine similarity，前端文件中心展示 top_k chunks 和 score。
+- 已完成真实 embedding provider 接入：后端支持 OpenAI-compatible Embedding Provider，并可通过 `.env` 在 `mock` 与 `openai` 间切换。
+- 已完成聊天侧文件接入体验优化：聊天输入区可以上传文件，并自动串联上传、解析、切块和向量化流程。
+- 已完成本地 VectorStore 闭环：后端将 chunks 和 embeddings 保存到 `backend/vector_store/` 的 JSON 索引文件，前端展示 indexed 状态和索引摘要。
+- 已完成最小 Retrieval 检索闭环：后端基于本地 VectorStore 和 query embedding 计算 cosine similarity，前端文件中心展示 top_k chunks 和 score。
 - 已完成最小 RAG 单文件问答闭环：后端基于 RetrievalService 返回的 top_k chunks 组装 RAG prompt，调用现有 LLMProvider 生成答案，前端文件中心展示回答和引用 chunks。
 - 已完成聊天侧 RAG 问答体验优化：聊天框上传文件并完成 indexed 后，当前对话会绑定最近一个文件，用户继续提问时调用 `/api/v1/files/{file_id}/ask`，回答作为聊天消息展示，并附带引用 chunks 摘要。
+- 已完成 GitHub 分享前基础整理：新增 `README.md`，更新 `backend/.env.example` 和 `.gitignore`，明确 API Key、上传文件和本地向量索引不应提交。
 - 已完成北辰agent UI 简化优化：统一产品命名，聚焦“对话 + 文件中心”，隐藏当前暂不实现的 PPT 入口。
 - 数据库持久化尚未开始实现。
 
@@ -236,7 +238,7 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 - chunk 和 embedding 结果已经可以写入本地 JSON VectorStore，但尚未写入数据库或 pgvector。
 - 当前切块策略是字符数切块，不是 tokenizer-aware 或 semantic chunk。
 - embedding 结果尚未写入向量数据库。
-- 当前 embedding 是 mock vector，不代表真实语义。
+- 当前可使用 mock 或 OpenAI-compatible embedding；mock 模式仍不代表真实语义。
 
 ### 3.4 项目文档
 
@@ -279,14 +281,14 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 
 当前正在推进的模块：
 
-- v0.9.1 Chat-side RAG QA 收尾。
+- v1.0 Real Embedding MVP 收尾。
 - 文档状态同步。
-- 聊天侧文件问答体验验证与文档同步。
+- 真实 embedding 配置验证与文档同步。
 
 下一步最适合推进：
 
-- 进行 v0.9.1 浏览器联调：在聊天框上传文件，等待 indexed 后直接提问，确认消息流展示答案和引用 chunks。
-- 进行 v1.0 真实 embedding provider 设计，提升 RAG 检索质量。
+- 使用真实 embedding 配置重新上传文件并索引，验证 RAG 检索质量提升。
+- 准备 GitHub 分享前检查，确认 `.env`、uploads、vector_store、`.claude/` 不进入 Git。
 
 ## 5. 未开始模块
 
@@ -345,16 +347,14 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 - 数据库。
 - ORM。
 - 数据库迁移。
-- Embedding 模型。
 - 向量数据库。
-- 真实 embedding provider。
 - 后端自动化测试框架。
 
 ## 7. 当前代码状态结论
 
 当前项目不是完整可用的 AI 应用 MVP，而是：
 
-**北辰agent 简洁 UI + 后端真实 LLM 聊天闭环 + 后端本地文件上传闭环 + 最小文档解析闭环 + 文本切块闭环 + mock embedding 闭环 + 本地 VectorStore 闭环 + Retrieval 检索闭环 + 单文件 RAG 问答闭环 + 聊天侧 RAG 问答体验 + v1.0 文档规划。**
+**北辰agent 简洁 UI + 后端真实 LLM 聊天闭环 + 后端本地文件上传闭环 + 最小文档解析闭环 + 文本切块闭环 + Mock / OpenAI-compatible embedding 闭环 + 本地 VectorStore 闭环 + Retrieval 检索闭环 + 单文件 RAG 问答闭环 + 聊天侧 RAG 问答体验 + GitHub 分享基础整理。**
 
 项目已经具备继续演进的基础边界：
 
@@ -366,7 +366,7 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 - 文件上传已经通过 `FileService` 预留后续文档解析、RAG 索引和数据库持久化入口。
 - 文档解析已经通过 `DocumentParserService` 预留后续 chunk、embedding 和 RAG 入口。
 - 文本切块已经通过 `ChunkService` 预留后续 embedding 和向量检索入口。
-- Embedding 已经通过 `EmbeddingService` 和 `EmbeddingProvider` 预留后续真实 embedding provider、VectorStore 和 RAG 入口。
+- Embedding 已经通过 `EmbeddingService` 和 `EmbeddingProvider` 支持 MockEmbeddingProvider 与 OpenAI-compatible Embedding Provider 切换。
 - VectorStore 已经通过 `VectorStoreService` 预留后续 RetrievalService 和 pgvector 替换入口。
 - Retrieval 已经通过 `RetrievalService` 预留后续 RagService 和文件问答入口。
 - RAG 已经通过 `RagService` 复用 RetrievalService 和 LLMProvider，实现单文件问答入口。
@@ -378,4 +378,4 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 - 数据库和持久化能力尚未建立。
 - AI 数据分析仍只是规划能力，尚未进入实现。
 
-因此，下一阶段应进行 v0.9.1 聊天侧 RAG 闭环收尾与体验验证；AI 数据分析继续保留规划边界，不挤占当前主链路。
+因此，下一阶段应进行 v1.0 真实 embedding 配置联调、README 使用验证和 GitHub 分享前检查；AI 数据分析继续保留规划边界，不挤占当前主链路。

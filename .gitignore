@@ -10,12 +10,15 @@ build/
 
 # Environment files
 .env
+backend/.env
+frontend/.env
 .env.local
 .env.*.local
 
 # IDE
 .vscode/
 .idea/
+.claude/
 *.swp
 *.swo
 *~
