@@ -26,10 +26,11 @@ import {
   SplitCellsOutlined,
   ClusterOutlined,
   DatabaseOutlined,
+  MessageOutlined,
 } from '@ant-design/icons';
 import { useFileStore } from '../stores/fileStore';
-import { retrieveFileChunks } from '../api/fileApi';
-import type { FileItem, RetrieveFileResponse } from '../types';
+import { askFile, retrieveFileChunks } from '../api/fileApi';
+import type { AskFileResponse, FileItem, RetrieveFileResponse } from '../types';
 
 const { Title, Text } = Typography;
 
@@ -74,6 +75,11 @@ export default function FileCenter() {
   const [retrievalTopK, setRetrievalTopK] = useState(3);
   const [retrieving, setRetrieving] = useState(false);
   const [retrievalResult, setRetrievalResult] = useState<RetrieveFileResponse | null>(null);
+  const [qaFile, setQaFile] = useState<FileItem | null>(null);
+  const [qaQuery, setQaQuery] = useState('');
+  const [qaTopK, setQaTopK] = useState(3);
+  const [asking, setAsking] = useState(false);
+  const [qaResult, setQaResult] = useState<AskFileResponse | null>(null);
 
   const handleUpload = async (file: File) => {
     setUploading(true);
@@ -90,8 +96,13 @@ export default function FileCenter() {
   };
 
   const handleStartQa = (file: FileItem) => {
-    file;
-    message.warning('RAG 问答将在下一阶段开放');
+    if (file.status !== 'indexed') {
+      message.warning('请先完成文件索引保存，再进行 RAG 问答');
+      return;
+    }
+    setQaFile(file);
+    setQaQuery('');
+    setQaResult(null);
   };
 
   const handleParse = async (file: FileItem) => {
@@ -152,6 +163,27 @@ export default function FileCenter() {
       message.error(errorMessage);
     } finally {
       setRetrieving(false);
+    }
+  };
+
+  const handleAskFile = async () => {
+    if (!qaFile) return;
+    const query = qaQuery.trim();
+    if (!query) {
+      message.warning('请输入文件问答问题');
+      return;
+    }
+
+    setAsking(true);
+    try {
+      const result = await askFile(qaFile.id, query, qaTopK);
+      setQaResult(result);
+      message.success('RAG 问答完成');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'RAG 问答失败';
+      message.error(errorMessage);
+    } finally {
+      setAsking(false);
     }
   };
 
@@ -300,6 +332,8 @@ export default function FileCenter() {
             <Button
               size="small"
               type="link"
+              icon={<MessageOutlined />}
+              disabled={record.status !== 'indexed'}
               onClick={() => handleStartQa(record)}
             >
               💬 问答
@@ -402,7 +436,7 @@ export default function FileCenter() {
             <Space>
               <LoadingOutlined style={{ color: '#fa8c16' }} />
               <Text style={{ color: '#d46b08', fontSize: 13 }}>
-                当前支持文档解析、文本切块、mock 向量化和本地向量索引保存。RAG 问答将在后续阶段开放。
+                当前支持文档解析、文本切块、mock 向量化、本地向量索引保存和单文件 RAG 问答。请先将文件处理到 indexed 状态后再提问。
               </Text>
             </Space>
           </div>
@@ -557,6 +591,90 @@ export default function FileCenter() {
                   </Text>
                   <Input.TextArea
                     value={result.content}
+                    readOnly
+                    autoSize={{ minRows: 3, maxRows: 8 }}
+                    style={{ marginTop: 8 }}
+                  />
+                </div>
+              ))}
+            </Space>
+          )}
+        </Space>
+      </Modal>
+
+      <Modal
+        title={qaFile?.original_name ? `${qaFile.original_name} · RAG 问答` : 'RAG 问答'}
+        open={!!qaFile}
+        onCancel={() => {
+          setQaFile(null);
+          setQaResult(null);
+        }}
+        footer={null}
+        width={860}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size={12}>
+          <Text type="secondary">
+            当前使用本地 VectorStore 检索相关 chunks，并调用现有 LLM 生成单文件问答答案。
+          </Text>
+          <Input.TextArea
+            value={qaQuery}
+            onChange={(event) => setQaQuery(event.target.value)}
+            placeholder="输入文件问题，例如：这个文档主要讲了什么？"
+            autoSize={{ minRows: 2, maxRows: 4 }}
+          />
+          <Space>
+            <Text type="secondary">Top K</Text>
+            <InputNumber
+              min={1}
+              max={8}
+              value={qaTopK}
+              onChange={(value) => setQaTopK(value ?? 3)}
+            />
+            <Button type="primary" loading={asking} onClick={handleAskFile}>
+              生成回答
+            </Button>
+          </Space>
+
+          {qaResult && (
+            <Space direction="vertical" style={{ width: '100%' }} size={12}>
+              <div
+                style={{
+                  border: '1px solid #d9f7be',
+                  borderRadius: 8,
+                  padding: 12,
+                  background: '#f6ffed',
+                }}
+              >
+                <Text strong style={{ fontSize: 13 }}>
+                  AI 回答 · {qaResult.model}
+                </Text>
+                <Input.TextArea
+                  value={qaResult.answer}
+                  readOnly
+                  autoSize={{ minRows: 5, maxRows: 12 }}
+                  style={{ marginTop: 8 }}
+                />
+              </div>
+
+              <Text type="secondary">
+                引用 chunks: {qaResult.used_chunk_count} · Provider: {qaResult.provider}
+              </Text>
+              {qaResult.used_chunks.map((chunk, index) => (
+                <div
+                  key={chunk.chunk_id}
+                  style={{
+                    border: '1px solid #f0f0f0',
+                    borderRadius: 8,
+                    padding: 12,
+                    background: '#fafafa',
+                  }}
+                >
+                  <Text strong style={{ fontSize: 13 }}>
+                    引用 {index + 1} · Chunk {chunk.chunk_index + 1} · score{' '}
+                    {chunk.score.toFixed(6)}
+                  </Text>
+                  <Input.TextArea
+                    value={chunk.content}
                     readOnly
                     autoSize={{ minRows: 3, maxRows: 8 }}
                     style={{ marginTop: 8 }}

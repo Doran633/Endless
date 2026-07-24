@@ -67,6 +67,21 @@ export interface RetrieveFileResponse {
   results: RetrievalResult[];
 }
 
+export interface AskFileResponse {
+  file_id: string;
+  query: string;
+  answer: string;
+  top_k: number;
+  used_chunk_count: number;
+  used_chunks: RetrievalResult[];
+  provider: string;
+  model: string;
+  usage: {
+    input_tokens?: number | null;
+    output_tokens?: number | null;
+  };
+}
+
 export interface FileItem {
   id: string;
   original_name: string;

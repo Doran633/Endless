@@ -66,3 +66,8 @@ class VectorStoreNotFoundError(AppError):
 class RetrievalError(AppError):
     def __init__(self, message: str = "Retrieval failed") -> None:
         super().__init__(message=message, code=48001, status_code=400)
+
+
+class RagError(AppError):
+    def __init__(self, message: str = "RAG question answering failed") -> None:
+        super().__init__(message=message, code=49001, status_code=400)

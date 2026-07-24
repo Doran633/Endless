@@ -114,3 +114,20 @@ class RetrieveFileResponse(BaseModel):
     top_k: int
     result_count: int
     results: list[RetrievalResult]
+
+
+class AskFileRequest(BaseModel):
+    query: str = Field(min_length=1)
+    top_k: int = Field(default=3, ge=1, le=8)
+
+
+class AskFileResponse(BaseModel):
+    file_id: str
+    query: str
+    answer: str
+    top_k: int
+    used_chunk_count: int
+    used_chunks: list[RetrievalResult]
+    provider: str
+    model: str
+    usage: dict[str, int | None]

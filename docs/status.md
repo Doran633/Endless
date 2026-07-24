@@ -4,9 +4,9 @@
 
 ## 1. 当前版本
 
-当前版本：`v0.8.0`
+当前版本：`v0.9.0`
 
-当前阶段：Retrieval 本地检索闭环阶段。
+当前阶段：RAG 单文件问答闭环阶段。
 
 当前状态判断：
 
@@ -25,8 +25,9 @@
 - 已完成聊天侧文件接入体验优化：聊天输入区可以上传文件，并自动串联上传、解析、切块和 mock 向量化流程。
 - 已完成本地 VectorStore 闭环：后端将 chunks 和 mock embeddings 保存到 `backend/vector_store/` 的 JSON 索引文件，前端展示 indexed 状态和索引摘要。
 - 已完成最小 Retrieval 检索闭环：后端基于本地 VectorStore 和 mock query embedding 计算 cosine similarity，前端文件中心展示 top_k chunks 和 score。
+- 已完成最小 RAG 单文件问答闭环：后端基于 RetrievalService 返回的 top_k chunks 组装 RAG prompt，调用现有 LLMProvider 生成答案，前端文件中心展示回答和引用 chunks。
 - 已完成北辰agent UI 简化优化：统一产品命名，聚焦“对话 + 文件中心”，隐藏当前暂不实现的 PPT 入口。
-- RAG 问答、数据库持久化尚未开始实现。
+- 数据库持久化尚未开始实现。
 
 ## 2. 当前 v1.0 目标
 
@@ -273,21 +274,20 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 
 当前正在推进的模块：
 
-- v0.8 Retrieval 本地检索闭环收尾。
+- v0.9 RAG 单文件问答闭环收尾。
 - 文档状态同步。
-- RAG 文件问答前置模块规划。
+- RAG 文件问答体验验证与文档同步。
 
 下一步最适合推进：
 
 - 进行 v0.8 浏览器联调：在文件中心对 indexed 文件执行检索测试，确认返回 top_k chunks 和 score。
 - 补充后端 retrieve 接口的最小自动化测试。
-- 进入 v0.9 RagService 文件问答设计。
+- 进行 v0.9 浏览器联调，验证 indexed 文件可以完成单文件问答并展示引用 chunks。
 
 ## 5. 未开始模块
 
 当前尚未开始实现：
 
-- 基于文件的问答接口。
 - 聊天会话持久化。
 - 文件元数据数据库持久化。
 - 文件列表后端 API。
@@ -343,14 +343,14 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 - 数据库迁移。
 - Embedding 模型。
 - 向量数据库。
-- RAG 检索链路。
+- 真实 embedding provider。
 - 后端自动化测试框架。
 
 ## 7. 当前代码状态结论
 
 当前项目不是完整可用的 AI 应用 MVP，而是：
 
-**北辰agent 简洁 UI + 后端真实 LLM 聊天闭环 + 后端本地文件上传闭环 + 最小文档解析闭环 + 文本切块闭环 + mock embedding 闭环 + 本地 VectorStore 闭环 + Retrieval 检索闭环 + 聊天侧文件自动接入体验 + v1.0 文档规划。**
+**北辰agent 简洁 UI + 后端真实 LLM 聊天闭环 + 后端本地文件上传闭环 + 最小文档解析闭环 + 文本切块闭环 + mock embedding 闭环 + 本地 VectorStore 闭环 + Retrieval 检索闭环 + 单文件 RAG 问答闭环 + 聊天侧文件自动接入体验 + v1.0 文档规划。**
 
 项目已经具备继续演进的基础边界：
 
@@ -365,12 +365,13 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 - Embedding 已经通过 `EmbeddingService` 和 `EmbeddingProvider` 预留后续真实 embedding provider、VectorStore 和 RAG 入口。
 - VectorStore 已经通过 `VectorStoreService` 预留后续 RetrievalService 和 pgvector 替换入口。
 - Retrieval 已经通过 `RetrievalService` 预留后续 RagService 和文件问答入口。
-- 聊天侧文件上传已经通过前端 `fileStore.ingestFile()` 串联现有文件处理 API 并保存本地索引，但仍不提供文件问答能力。
+- RAG 已经通过 `RagService` 复用 RetrievalService 和 LLMProvider，实现单文件问答入口。
+- 聊天侧文件上传已经通过前端 `fileStore.ingestFile()` 串联现有文件处理 API 并保存本地索引，文件问答目前在文件中心入口中完成。
 
 当前最大缺口是：
 
-- RAG 主链路尚未开始。
+- RAG 当前仅支持单文件问答。
 - 数据库和持久化能力尚未建立。
 - AI 数据分析仍只是规划能力，尚未进入实现。
 
-因此，下一阶段应进入 v0.9 RagService 文件问答规划；AI 数据分析继续保留规划边界，不挤占当前主链路。
+因此，下一阶段应进行 v0.9 RAG 闭环收尾与体验验证；AI 数据分析继续保留规划边界，不挤占当前主链路。
