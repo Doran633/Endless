@@ -4,9 +4,9 @@
 
 ## 1. 当前版本
 
-当前版本：`v0.9.0`
+当前版本：`v0.9.1`
 
-当前阶段：RAG 单文件问答闭环阶段。
+当前阶段：Chat-side RAG QA 体验优化阶段。
 
 当前状态判断：
 
@@ -26,6 +26,7 @@
 - 已完成本地 VectorStore 闭环：后端将 chunks 和 mock embeddings 保存到 `backend/vector_store/` 的 JSON 索引文件，前端展示 indexed 状态和索引摘要。
 - 已完成最小 Retrieval 检索闭环：后端基于本地 VectorStore 和 mock query embedding 计算 cosine similarity，前端文件中心展示 top_k chunks 和 score。
 - 已完成最小 RAG 单文件问答闭环：后端基于 RetrievalService 返回的 top_k chunks 组装 RAG prompt，调用现有 LLMProvider 生成答案，前端文件中心展示回答和引用 chunks。
+- 已完成聊天侧 RAG 问答体验优化：聊天框上传文件并完成 indexed 后，当前对话会绑定最近一个文件，用户继续提问时调用 `/api/v1/files/{file_id}/ask`，回答作为聊天消息展示，并附带引用 chunks 摘要。
 - 已完成北辰agent UI 简化优化：统一产品命名，聚焦“对话 + 文件中心”，隐藏当前暂不实现的 PPT 入口。
 - 数据库持久化尚未开始实现。
 
@@ -82,6 +83,9 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 - 聊天输入区文件上传入口。
 - 聊天侧文件自动处理状态展示。
 - 聊天侧文件自动本地索引保存。
+- 聊天侧最近 indexed 文件绑定。
+- 聊天消息流中的 RAG 回答展示。
+- RAG 回答引用 chunks 摘要展示。
 - 文件中心本地索引保存触发入口。
 - indexed 状态和本地索引路径摘要展示。
 - 文件中心检索测试入口。
@@ -102,6 +106,7 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 - 前端文件本地索引保存已经调用后端 `/api/v1/files/{file_id}/vector-store`。
 - 前端文件检索测试已经调用后端 `/api/v1/files/{file_id}/retrieve`。
 - 聊天侧文件上传会自动串联 `/api/v1/files`、`/api/v1/files/{file_id}/parse`、`/api/v1/files/{file_id}/chunks`、`/api/v1/files/{file_id}/embeddings` 和 `/api/v1/files/{file_id}/vector-store`。
+- 聊天侧存在最近 indexed 文件时，用户发送消息会调用 `/api/v1/files/{file_id}/ask`；没有当前文件时仍调用 `/api/v1/chat`。
 - 前端会话、历史消息和初始文件列表仍使用 Mock 数据。
 - 文件列表刷新、文件删除和文件持久化列表接口尚未实现。
 - 解析结果只保存在当前前端状态中，刷新页面后不会恢复。
@@ -274,15 +279,14 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 
 当前正在推进的模块：
 
-- v0.9 RAG 单文件问答闭环收尾。
+- v0.9.1 Chat-side RAG QA 收尾。
 - 文档状态同步。
-- RAG 文件问答体验验证与文档同步。
+- 聊天侧文件问答体验验证与文档同步。
 
 下一步最适合推进：
 
-- 进行 v0.8 浏览器联调：在文件中心对 indexed 文件执行检索测试，确认返回 top_k chunks 和 score。
-- 补充后端 retrieve 接口的最小自动化测试。
-- 进行 v0.9 浏览器联调，验证 indexed 文件可以完成单文件问答并展示引用 chunks。
+- 进行 v0.9.1 浏览器联调：在聊天框上传文件，等待 indexed 后直接提问，确认消息流展示答案和引用 chunks。
+- 进行 v1.0 真实 embedding provider 设计，提升 RAG 检索质量。
 
 ## 5. 未开始模块
 
@@ -350,7 +354,7 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 
 当前项目不是完整可用的 AI 应用 MVP，而是：
 
-**北辰agent 简洁 UI + 后端真实 LLM 聊天闭环 + 后端本地文件上传闭环 + 最小文档解析闭环 + 文本切块闭环 + mock embedding 闭环 + 本地 VectorStore 闭环 + Retrieval 检索闭环 + 单文件 RAG 问答闭环 + 聊天侧文件自动接入体验 + v1.0 文档规划。**
+**北辰agent 简洁 UI + 后端真实 LLM 聊天闭环 + 后端本地文件上传闭环 + 最小文档解析闭环 + 文本切块闭环 + mock embedding 闭环 + 本地 VectorStore 闭环 + Retrieval 检索闭环 + 单文件 RAG 问答闭环 + 聊天侧 RAG 问答体验 + v1.0 文档规划。**
 
 项目已经具备继续演进的基础边界：
 
@@ -366,12 +370,12 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 - VectorStore 已经通过 `VectorStoreService` 预留后续 RetrievalService 和 pgvector 替换入口。
 - Retrieval 已经通过 `RetrievalService` 预留后续 RagService 和文件问答入口。
 - RAG 已经通过 `RagService` 复用 RetrievalService 和 LLMProvider，实现单文件问答入口。
-- 聊天侧文件上传已经通过前端 `fileStore.ingestFile()` 串联现有文件处理 API 并保存本地索引，文件问答目前在文件中心入口中完成。
+- 聊天侧文件上传已经通过前端 `fileStore.ingestFile()` 串联现有文件处理 API 并保存本地索引；索引完成后，当前对话可直接基于最近一个 indexed 文件提问。
 
 当前最大缺口是：
 
-- RAG 当前仅支持单文件问答。
+- RAG 当前仅支持最近一个 indexed 文件的单文件问答。
 - 数据库和持久化能力尚未建立。
 - AI 数据分析仍只是规划能力，尚未进入实现。
 
-因此，下一阶段应进行 v0.9 RAG 闭环收尾与体验验证；AI 数据分析继续保留规划边界，不挤占当前主链路。
+因此，下一阶段应进行 v0.9.1 聊天侧 RAG 闭环收尾与体验验证；AI 数据分析继续保留规划边界，不挤占当前主链路。

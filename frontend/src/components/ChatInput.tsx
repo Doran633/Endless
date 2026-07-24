@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button, Input, Space, Tooltip, Typography, message } from 'antd';
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
+  CloseOutlined,
   LoadingOutlined,
   PaperClipOutlined,
   SendOutlined,
@@ -13,14 +14,31 @@ import { useFileStore } from '../stores/fileStore';
 
 const { Text } = Typography;
 
+const ingestionStatusText = {
+  idle: '',
+  uploading: '正在上传文件...',
+  parsing: '正在解析文档...',
+  chunking: '正在切分文本...',
+  embedding: '正在生成 mock 向量...',
+  indexing: '正在保存本地向量索引...',
+  completed: '文件已准备好，可以直接在聊天框中基于该文件提问。',
+  failed: '文件处理失败',
+};
+
 export default function ChatInput() {
   const [value, setValue] = useState('');
-  const { sendMessage, isStreaming, currentSessionId } = useChatStore();
-  const { ingestFile, ingestion } = useFileStore();
+  const {
+    bindRagFileToCurrentSession,
+    clearCurrentSessionRagFile,
+    currentSessionId,
+    isStreaming,
+    sendMessage,
+    sessionRagFiles,
+  } = useChatStore();
+  const { clearActiveRagFile, ingestFile, ingestion } = useFileStore();
   const textRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-focus on mount and when session changes
   useEffect(() => {
     textRef.current?.focus();
   }, [currentSessionId]);
@@ -42,17 +60,7 @@ export default function ChatInput() {
   const isIngesting = ['uploading', 'parsing', 'chunking', 'embedding', 'indexing'].includes(
     ingestion.status
   );
-
-  const ingestionStatusText: Record<typeof ingestion.status, string> = {
-    idle: '',
-    uploading: '正在上传文件...',
-    parsing: '正在解析文档...',
-    chunking: '正在切分文本...',
-    embedding: '正在生成 mock 向量...',
-    indexing: '正在保存本地向量索引...',
-    completed: '文件已索引，后续 RAG 阶段可用于检索问答',
-    failed: ingestion.errorMessage || '文件处理失败',
-  };
+  const currentRagFile = currentSessionId ? sessionRagFiles[currentSessionId] : undefined;
 
   const handlePickFile = () => {
     if (isIngesting) return;
@@ -67,12 +75,21 @@ export default function ChatInput() {
 
     try {
       await ingestFile(file);
+      const fileState = useFileStore.getState();
+      if (fileState.activeRagFileId && fileState.activeRagFileName) {
+        bindRagFileToCurrentSession(fileState.activeRagFileId, fileState.activeRagFileName);
+      }
       message.success(`"${file.name}" 已完成解析、切块、向量化和索引保存`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '文件处理失败';
       message.error(errorMessage);
     }
   };
+
+  const statusText =
+    ingestion.status === 'failed'
+      ? ingestion.errorMessage || ingestionStatusText.failed
+      : ingestionStatusText[ingestion.status];
 
   return (
     <div
@@ -119,7 +136,7 @@ export default function ChatInput() {
             style={{ display: 'none' }}
             onChange={handleFileChange}
           />
-          <Tooltip title="上传文件并自动准备">
+          <Tooltip title="上传文件并自动准备 RAG 问答">
             <Button
               shape="circle"
               icon={isIngesting ? <LoadingOutlined /> : <PaperClipOutlined />}
@@ -137,7 +154,11 @@ export default function ChatInput() {
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="输入消息，Enter 发送，Shift+Enter 换行"
+            placeholder={
+              currentRagFile
+                ? `基于 ${currentRagFile.fileName} 提问，Enter 发送`
+                : '输入消息，Enter 发送，Shift+Enter 换行'
+            }
             autoSize={{ minRows: 1, maxRows: 6 }}
             variant="borderless"
             style={{ fontSize: 14, padding: 0, resize: 'none' }}
@@ -157,7 +178,7 @@ export default function ChatInput() {
           />
         </div>
 
-        {ingestion.status !== 'idle' && (
+        {(ingestion.status !== 'idle' || currentRagFile) && (
           <div
             style={{
               display: 'flex',
@@ -185,15 +206,26 @@ export default function ChatInput() {
                 color: ingestion.status === 'failed' ? '#a8071a' : '#237804',
               }}
             >
-              {ingestion.fileName ? `${ingestion.fileName} · ` : ''}
-              {ingestionStatusText[ingestion.status]}
+              {currentRagFile
+                ? `当前文件：${currentRagFile.fileName} · ${statusText || '可进行 RAG 问答'}`
+                : `${ingestion.fileName ? `${ingestion.fileName} · ` : ''}${statusText}`}
               {ingestion.status === 'completed' &&
                 typeof ingestion.embeddingCount === 'number' &&
                 ` · ${ingestion.embeddingCount} embeddings / ${ingestion.embeddingDimension} 维`}
-              {ingestion.status === 'completed' &&
-                ingestion.vectorStorePath &&
-                ` · ${ingestion.vectorStorePath}`}
             </Text>
+            {currentRagFile && !isIngesting && (
+              <Tooltip title="清除当前文件，恢复普通聊天">
+                <Button
+                  size="small"
+                  type="text"
+                  icon={<CloseOutlined />}
+                  onClick={() => {
+                    clearCurrentSessionRagFile();
+                    clearActiveRagFile();
+                  }}
+                />
+              </Tooltip>
+            )}
           </div>
         )}
 

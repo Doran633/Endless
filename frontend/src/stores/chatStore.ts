@@ -1,17 +1,29 @@
 import { create } from 'zustand';
-import type { Session, Message } from '../types';
-import { mockSessions, mockMessages } from '../api/mock';
+import type { Message, Session } from '../types';
+import { mockMessages, mockSessions } from '../api/mock';
 import { sendChatMessage } from '../api/chatApi';
+import { askFile } from '../api/fileApi';
+import { useFileStore } from './fileStore';
+
+const INGESTING_STATUSES = ['uploading', 'parsing', 'chunking', 'embedding', 'indexing'];
+const DEFAULT_RAG_TOP_K = 3;
+
+interface SessionRagFile {
+  fileId: string;
+  fileName: string;
+}
 
 interface ChatState {
   sessions: Session[];
   currentSessionId: string | null;
   messages: Record<string, Message[]>;
+  sessionRagFiles: Record<string, SessionRagFile>;
   isStreaming: boolean;
 
-  // 操作
   selectSession: (id: string) => void;
   createSession: (mode: 'general' | 'file', fileId?: string) => string;
+  bindRagFileToCurrentSession: (fileId: string, fileName: string) => void;
+  clearCurrentSessionRagFile: () => void;
   sendMessage: (content: string) => Promise<void>;
   deleteSession: (id: string) => void;
 }
@@ -20,6 +32,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   sessions: mockSessions,
   currentSessionId: mockSessions[0]?.id ?? null,
   messages: mockMessages,
+  sessionRagFiles: {},
   isStreaming: false,
 
   selectSession: (id: string) => {
@@ -43,6 +56,39 @@ export const useChatStore = create<ChatState>((set, get) => ({
     return id;
   },
 
+  bindRagFileToCurrentSession: (fileId: string, fileName: string) => {
+    const { currentSessionId } = get();
+    if (!currentSessionId) return;
+
+    set((state) => ({
+      sessionRagFiles: {
+        ...state.sessionRagFiles,
+        [currentSessionId]: { fileId, fileName },
+      },
+      sessions: state.sessions.map((session) =>
+        session.id === currentSessionId ? { ...session, mode: 'file', fileId } : session
+      ),
+    }));
+  },
+
+  clearCurrentSessionRagFile: () => {
+    const { currentSessionId } = get();
+    if (!currentSessionId) return;
+
+    set((state) => {
+      const sessionRagFiles = { ...state.sessionRagFiles };
+      delete sessionRagFiles[currentSessionId];
+      return {
+        sessionRagFiles,
+        sessions: state.sessions.map((session) =>
+          session.id === currentSessionId
+            ? { ...session, mode: 'general', fileId: undefined }
+            : session
+        ),
+      };
+    });
+  },
+
   sendMessage: async (content: string) => {
     const { currentSessionId, messages } = get();
     if (!currentSessionId) return;
@@ -54,33 +100,58 @@ export const useChatStore = create<ChatState>((set, get) => ({
       createdAt: new Date().toISOString(),
     };
 
-    // 添加用户消息
     set((state) => ({
       messages: {
         ...state.messages,
-        [currentSessionId]: [
-          ...(state.messages[currentSessionId] || []),
-          userMsg,
-        ],
+        [currentSessionId]: [...(state.messages[currentSessionId] || []), userMsg],
       },
       isStreaming: true,
     }));
 
-    // 更新会话标题（如果是第一条消息）
     const session = get().sessions.find((s) => s.id === currentSessionId);
     if (session && messages[currentSessionId]?.length === 0) {
       set((state) => ({
         sessions: state.sessions.map((s) =>
           s.id === currentSessionId
-            ? { ...s, title: content.length > 20 ? content.slice(0, 20) + '…' : content }
+            ? { ...s, title: content.length > 20 ? `${content.slice(0, 20)}...` : content }
             : s
         ),
       }));
     }
 
     let aiContent: string;
+    let aiMetadata: Message['metadata'] = {};
+
     try {
-      aiContent = await sendChatMessage(content);
+      const fileState = useFileStore.getState();
+      const isIngesting = INGESTING_STATUSES.includes(fileState.ingestion.status);
+      const currentRagFile = get().sessionRagFiles[currentSessionId];
+
+      if (isIngesting) {
+        // Do not fall back to ordinary chat while a file is being indexed.
+        aiContent = '文件还在处理中，请稍等完成索引后再基于该文件提问。';
+      } else if (currentRagFile) {
+        const ragResponse = await askFile(currentRagFile.fileId, content, DEFAULT_RAG_TOP_K);
+        aiContent = ragResponse.answer;
+        aiMetadata = {
+          rag_file_id: ragResponse.file_id,
+          rag_file_name: currentRagFile.fileName,
+          chunk_ids: ragResponse.used_chunks.map((chunk) => chunk.chunk_id),
+          token_count: ragResponse.usage.output_tokens ?? undefined,
+          used_chunks: ragResponse.used_chunks.map((chunk) => ({
+            chunk_id: chunk.chunk_id,
+            chunk_index: chunk.chunk_index,
+            score: chunk.score,
+            content_preview:
+              chunk.content.length > 180 ? `${chunk.content.slice(0, 180)}...` : chunk.content,
+          })),
+        };
+      } else {
+        aiContent = await sendChatMessage(content);
+        aiMetadata = {
+          token_count: Math.floor(Math.random() * 500) + 100,
+        };
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'AI 回复失败，请稍后重试';
       aiContent = `AI 回复失败：${message}`;
@@ -91,18 +162,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
       role: 'assistant',
       content: aiContent,
       createdAt: new Date().toISOString(),
-      metadata: {
-        token_count: Math.floor(Math.random() * 500) + 100,
-      },
+      metadata: aiMetadata,
     };
 
     set((state) => ({
       messages: {
         ...state.messages,
-        [currentSessionId]: [
-          ...(state.messages[currentSessionId] || []),
-          aiMsg,
-        ],
+        [currentSessionId]: [...(state.messages[currentSessionId] || []), aiMsg],
       },
       isStreaming: false,
     }));
@@ -112,14 +178,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set((state) => {
       const newSessions = state.sessions.filter((s) => s.id !== id);
       const newMessages = { ...state.messages };
+      const newSessionRagFiles = { ...state.sessionRagFiles };
       delete newMessages[id];
+      delete newSessionRagFiles[id];
       return {
         sessions: newSessions,
         messages: newMessages,
+        sessionRagFiles: newSessionRagFiles,
         currentSessionId:
-          state.currentSessionId === id
-            ? newSessions[0]?.id ?? null
-            : state.currentSessionId,
+          state.currentSessionId === id ? newSessions[0]?.id ?? null : state.currentSessionId,
       };
     });
   },

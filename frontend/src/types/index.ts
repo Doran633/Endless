@@ -32,6 +32,14 @@ export interface Message {
   metadata?: {
     chunk_ids?: string[];
     token_count?: number;
+    rag_file_id?: string;
+    rag_file_name?: string;
+    used_chunks?: {
+      chunk_id: string;
+      chunk_index: number;
+      score: number;
+      content_preview: string;
+    }[];
     cards?: MessageCard[];
   };
 }

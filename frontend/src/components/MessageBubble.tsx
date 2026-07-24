@@ -633,6 +633,32 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
         <div style={{ lineHeight: 1.7 }}>
           {blocks.map((block, i) => renderBlock(block, i))}
         </div>
+        {message.metadata?.used_chunks && message.metadata.used_chunks.length > 0 && !isUser && (
+          <div
+            style={{
+              marginTop: 12,
+              padding: '10px 12px',
+              borderRadius: 8,
+              background: '#f0f5ff',
+              border: '1px solid #d6e4ff',
+            }}
+          >
+            <Text style={{ display: 'block', color: '#3150a5', fontSize: 12, fontWeight: 600 }}>
+              引用片段 · {message.metadata.rag_file_name || '当前文件'}
+            </Text>
+            {message.metadata.used_chunks.map((chunk, index) => (
+              <div key={chunk.chunk_id} style={{ marginTop: 8 }}>
+                <Text style={{ display: 'block', color: '#597ef7', fontSize: 11 }}>
+                  引用 {index + 1} · Chunk {chunk.chunk_index + 1} · score{' '}
+                  {chunk.score.toFixed(6)}
+                </Text>
+                <Text style={{ color: '#595959', fontSize: 12, lineHeight: 1.6 }}>
+                  {chunk.content_preview}
+                </Text>
+              </div>
+            ))}
+          </div>
+        )}
         {message.metadata?.token_count && !isUser && (
           <div style={{ marginTop: 12 }}>
             <Text style={{ color: '#bbb', fontSize: 11 }}>⚡ {message.metadata.token_count} tokens</Text>

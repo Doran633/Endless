@@ -11,6 +11,8 @@ interface FileState {
   files: FileItem[];
   uploading: boolean;
   ingestion: FileIngestionState;
+  activeRagFileId?: string;
+  activeRagFileName?: string;
 
   uploadFile: (file: File) => Promise<void>;
   ingestFile: (file: File) => Promise<void>;
@@ -18,6 +20,7 @@ interface FileState {
   chunkFile: (id: string) => Promise<void>;
   embedFile: (id: string) => Promise<void>;
   storeVectors: (id: string) => Promise<void>;
+  clearActiveRagFile: () => void;
   removeFile: (id: string) => void;
   getFileById: (id: string) => FileItem | undefined;
 }
@@ -26,6 +29,8 @@ export const useFileStore = create<FileState>((set, get) => ({
   files: mockFiles,
   uploading: false,
   ingestion: { status: 'idle' },
+  activeRagFileId: undefined,
+  activeRagFileName: undefined,
 
   uploadFile: async (file: File) => {
     set({ uploading: true });
@@ -45,6 +50,8 @@ export const useFileStore = create<FileState>((set, get) => ({
     set({
       uploading: true,
       ingestion: { status: 'uploading', fileName: file.name },
+      activeRagFileId: undefined,
+      activeRagFileName: undefined,
     });
 
     try {
@@ -145,6 +152,8 @@ export const useFileStore = create<FileState>((set, get) => ({
           embeddingDimension: storedFile.embedding_dimension,
           vectorStorePath: storedFile.storage_path,
         },
+        activeRagFileId: uploadedFile!.id,
+        activeRagFileName: uploadedFile!.original_name,
       }));
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '文件处理失败';
@@ -328,6 +337,8 @@ export const useFileStore = create<FileState>((set, get) => ({
               }
             : file
         ),
+        activeRagFileId: targetFile.id,
+        activeRagFileName: targetFile.original_name,
       }));
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '向量索引保存失败';
@@ -340,9 +351,19 @@ export const useFileStore = create<FileState>((set, get) => ({
     }
   },
 
+  clearActiveRagFile: () => {
+    set({
+      activeRagFileId: undefined,
+      activeRagFileName: undefined,
+      ingestion: { status: 'idle' },
+    });
+  },
+
   removeFile: (id: string) => {
     set((state) => ({
       files: state.files.filter((f) => f.id !== id),
+      activeRagFileId: state.activeRagFileId === id ? undefined : state.activeRagFileId,
+      activeRagFileName: state.activeRagFileId === id ? undefined : state.activeRagFileName,
     }));
   },
 
