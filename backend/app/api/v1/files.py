@@ -2,11 +2,18 @@ from fastapi import APIRouter, File, UploadFile
 
 from app.core.responses import ok
 from app.core.config import settings
-from app.schemas.file import ChunkFileRequest, EmbedFileRequest, ParseFileRequest, StoreVectorRequest
+from app.schemas.file import (
+    ChunkFileRequest,
+    EmbedFileRequest,
+    ParseFileRequest,
+    RetrieveFileRequest,
+    StoreVectorRequest,
+)
 from app.services.chunk_service import ChunkService
 from app.services.document_parser_service import DocumentParserService
 from app.services.embedding_service import EmbeddingService
 from app.services.file_service import FileService
+from app.services.retrieval_service import RetrievalService
 from app.services.vector_store_service import VectorStoreService
 
 
@@ -58,4 +65,10 @@ async def store_file_vectors(file_id: str, request: StoreVectorRequest) -> dict[
 @router.get("/files/{file_id}/vector-store")
 async def get_file_vector_store(file_id: str) -> dict[str, object]:
     result = VectorStoreService().get_file_vector_summary(file_id)
+    return ok(result.model_dump())
+
+
+@router.post("/files/{file_id}/retrieve")
+async def retrieve_file_chunks(file_id: str, request: RetrieveFileRequest) -> dict[str, object]:
+    result = RetrievalService().retrieve(file_id, request.query, request.top_k)
     return ok(result.model_dump())

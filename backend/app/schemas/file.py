@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class UploadedFileResponse(BaseModel):
@@ -93,3 +93,24 @@ class VectorStoreSummaryResponse(BaseModel):
     embedding_model: str
     storage_path: str
     created_at: str
+
+
+class RetrieveFileRequest(BaseModel):
+    query: str = Field(min_length=1)
+    top_k: int = Field(default=3, ge=1, le=10)
+
+
+class RetrievalResult(BaseModel):
+    chunk_id: str
+    chunk_index: int
+    content: str
+    char_count: int
+    score: float
+
+
+class RetrieveFileResponse(BaseModel):
+    file_id: str
+    query: str
+    top_k: int
+    result_count: int
+    results: list[RetrievalResult]

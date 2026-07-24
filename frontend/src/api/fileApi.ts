@@ -1,4 +1,4 @@
-import type { DocumentChunk, EmbeddingPreview, FileItem } from '../types';
+import type { DocumentChunk, EmbeddingPreview, FileItem, RetrieveFileResponse } from '../types';
 
 interface ApiResponse<T> {
   code: number;
@@ -142,6 +142,28 @@ export async function getFileVectorStore(fileId: string): Promise<StoreVectorRes
 
   if (!response.ok || payload.code !== 0 || !payload.data) {
     throw new Error(payload.message || '向量索引读取失败');
+  }
+
+  return payload.data;
+}
+
+export async function retrieveFileChunks(
+  fileId: string,
+  query: string,
+  topK: number
+): Promise<RetrieveFileResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/files/${fileId}/retrieve`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ query, top_k: topK }),
+  });
+
+  const payload = (await response.json()) as ApiResponse<RetrieveFileResponse>;
+
+  if (!response.ok || payload.code !== 0 || !payload.data) {
+    throw new Error(payload.message || '检索失败');
   }
 
   return payload.data;

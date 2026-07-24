@@ -51,6 +51,22 @@ export interface EmbeddingPreview {
   vector_preview: number[];
 }
 
+export interface RetrievalResult {
+  chunk_id: string;
+  chunk_index: number;
+  content: string;
+  char_count: number;
+  score: number;
+}
+
+export interface RetrieveFileResponse {
+  file_id: string;
+  query: string;
+  top_k: number;
+  result_count: number;
+  results: RetrievalResult[];
+}
+
 export interface FileItem {
   id: string;
   original_name: string;

@@ -61,3 +61,8 @@ class VectorStoreError(AppError):
 class VectorStoreNotFoundError(AppError):
     def __init__(self, message: str = "Vector store index not found") -> None:
         super().__init__(message=message, code=47002, status_code=404)
+
+
+class RetrievalError(AppError):
+    def __init__(self, message: str = "Retrieval failed") -> None:
+        super().__init__(message=message, code=48001, status_code=400)

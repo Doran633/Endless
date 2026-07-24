@@ -10,6 +10,7 @@ import {
   Modal,
   Input,
   Empty,
+  InputNumber,
 } from 'antd';
 import {
   UploadOutlined,
@@ -27,7 +28,8 @@ import {
   DatabaseOutlined,
 } from '@ant-design/icons';
 import { useFileStore } from '../stores/fileStore';
-import type { FileItem } from '../types';
+import { retrieveFileChunks } from '../api/fileApi';
+import type { FileItem, RetrieveFileResponse } from '../types';
 
 const { Title, Text } = Typography;
 
@@ -67,6 +69,11 @@ export default function FileCenter() {
   const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
   const [chunkPreviewFile, setChunkPreviewFile] = useState<FileItem | null>(null);
   const [embeddingPreviewFile, setEmbeddingPreviewFile] = useState<FileItem | null>(null);
+  const [retrievalFile, setRetrievalFile] = useState<FileItem | null>(null);
+  const [retrievalQuery, setRetrievalQuery] = useState('');
+  const [retrievalTopK, setRetrievalTopK] = useState(3);
+  const [retrieving, setRetrieving] = useState(false);
+  const [retrievalResult, setRetrievalResult] = useState<RetrieveFileResponse | null>(null);
 
   const handleUpload = async (file: File) => {
     setUploading(true);
@@ -124,6 +131,27 @@ export default function FileCenter() {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '向量索引保存失败';
       message.error(errorMessage);
+    }
+  };
+
+  const handleRetrieve = async () => {
+    if (!retrievalFile) return;
+    const query = retrievalQuery.trim();
+    if (!query) {
+      message.warning('请输入检索问题');
+      return;
+    }
+
+    setRetrieving(true);
+    try {
+      const result = await retrieveFileChunks(retrievalFile.id, query, retrievalTopK);
+      setRetrievalResult(result);
+      message.success(`已返回 ${result.result_count} 条检索结果`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '检索失败';
+      message.error(errorMessage);
+    } finally {
+      setRetrieving(false);
     }
   };
 
@@ -253,6 +281,20 @@ export default function FileCenter() {
                 onClick={() => setEmbeddingPreviewFile(record)}
               >
                 vectors
+              </Button>
+            )}
+            {record.status === 'indexed' && (
+              <Button
+                size="small"
+                type="link"
+                icon={<SearchOutlined />}
+                onClick={() => {
+                  setRetrievalFile(record);
+                  setRetrievalQuery('');
+                  setRetrievalResult(null);
+                }}
+              >
+                检索
               </Button>
             )}
             <Button
@@ -458,6 +500,71 @@ export default function FileCenter() {
               />
             </div>
           ))}
+        </Space>
+      </Modal>
+
+      <Modal
+        title={retrievalFile?.original_name ? `${retrievalFile.original_name} · 检索测试` : '检索测试'}
+        open={!!retrievalFile}
+        onCancel={() => {
+          setRetrievalFile(null);
+          setRetrievalResult(null);
+        }}
+        footer={null}
+        width={820}
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size={12}>
+          <Text type="secondary">
+            当前仅展示本地 VectorStore 检索结果，不调用 LLM，也不生成文件问答答案。
+          </Text>
+          <Input.TextArea
+            value={retrievalQuery}
+            onChange={(event) => setRetrievalQuery(event.target.value)}
+            placeholder="输入检索问题，例如：这个文档主要讲了什么？"
+            autoSize={{ minRows: 2, maxRows: 4 }}
+          />
+          <Space>
+            <Text type="secondary">Top K</Text>
+            <InputNumber
+              min={1}
+              max={10}
+              value={retrievalTopK}
+              onChange={(value) => setRetrievalTopK(value ?? 3)}
+            />
+            <Button type="primary" loading={retrieving} onClick={handleRetrieve}>
+              检索
+            </Button>
+          </Space>
+
+          {retrievalResult && (
+            <Space direction="vertical" style={{ width: '100%' }} size={12}>
+              <Text type="secondary">
+                Query: {retrievalResult.query} · 返回 {retrievalResult.result_count} 条
+              </Text>
+              {retrievalResult.results.map((result, index) => (
+                <div
+                  key={result.chunk_id}
+                  style={{
+                    border: '1px solid #f0f0f0',
+                    borderRadius: 8,
+                    padding: 12,
+                    background: '#fafafa',
+                  }}
+                >
+                  <Text strong style={{ fontSize: 13 }}>
+                    Top {index + 1} · Chunk {result.chunk_index + 1} · score{' '}
+                    {result.score.toFixed(6)} · {result.char_count} 字符
+                  </Text>
+                  <Input.TextArea
+                    value={result.content}
+                    readOnly
+                    autoSize={{ minRows: 3, maxRows: 8 }}
+                    style={{ marginTop: 8 }}
+                  />
+                </div>
+              ))}
+            </Space>
+          )}
         </Space>
       </Modal>
     </div>
