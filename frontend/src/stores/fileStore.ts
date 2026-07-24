@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { FileItem } from '../types';
+import type { FileIngestionState, FileItem } from '../types';
 import { mockFiles } from '../api/mock';
 import { uploadFile as uploadFileApi } from '../api/fileApi';
 import { parseFile as parseFileApi } from '../api/fileApi';
@@ -9,8 +9,10 @@ import { embedFile as embedFileApi } from '../api/fileApi';
 interface FileState {
   files: FileItem[];
   uploading: boolean;
+  ingestion: FileIngestionState;
 
   uploadFile: (file: File) => Promise<void>;
+  ingestFile: (file: File) => Promise<void>;
   parseFile: (id: string) => Promise<void>;
   chunkFile: (id: string) => Promise<void>;
   embedFile: (id: string) => Promise<void>;
@@ -21,6 +23,7 @@ interface FileState {
 export const useFileStore = create<FileState>((set, get) => ({
   files: mockFiles,
   uploading: false,
+  ingestion: { status: 'idle' },
 
   uploadFile: async (file: File) => {
     set({ uploading: true });
@@ -29,6 +32,102 @@ export const useFileStore = create<FileState>((set, get) => ({
       set((state) => ({
         files: [uploadedFile, ...state.files],
       }));
+    } finally {
+      set({ uploading: false });
+    }
+  },
+
+  ingestFile: async (file: File) => {
+    let uploadedFile: FileItem | undefined;
+
+    set({
+      uploading: true,
+      ingestion: { status: 'uploading', fileName: file.name },
+    });
+
+    try {
+      uploadedFile = await uploadFileApi(file);
+      set((state) => ({
+        files: [uploadedFile!, ...state.files],
+        ingestion: { status: 'parsing', fileName: uploadedFile!.original_name },
+      }));
+
+      const parsedFile = await parseFileApi(uploadedFile.id, uploadedFile.extension);
+      set((state) => ({
+        files: state.files.map((item) =>
+          item.id === uploadedFile!.id
+            ? {
+                ...item,
+                status: 'ready',
+                text_preview: parsedFile.text_preview,
+                char_count: parsedFile.char_count,
+                parsed_at: new Date().toISOString(),
+              }
+            : item
+        ),
+        ingestion: { status: 'chunking', fileName: uploadedFile!.original_name },
+      }));
+
+      const chunkedFile = await chunkFileApi(uploadedFile.id, uploadedFile.extension);
+      set((state) => ({
+        files: state.files.map((item) =>
+          item.id === uploadedFile!.id
+            ? {
+                ...item,
+                status: 'chunked',
+                chunk_count: chunkedFile.chunk_count,
+                chunk_preview: chunkedFile.chunk_preview,
+                chunked_at: new Date().toISOString(),
+              }
+            : item
+        ),
+        ingestion: {
+          status: 'embedding',
+          fileName: uploadedFile!.original_name,
+          chunkCount: chunkedFile.chunk_count,
+        },
+      }));
+
+      const embeddedFile = await embedFileApi(uploadedFile.id, uploadedFile.extension);
+      set((state) => ({
+        files: state.files.map((item) =>
+          item.id === uploadedFile!.id
+            ? {
+                ...item,
+                status: 'embedded',
+                chunk_count: embeddedFile.chunk_count,
+                embedding_count: embeddedFile.embedding_count,
+                embedding_dimension: embeddedFile.embedding_dimension,
+                embedding_preview: embeddedFile.embedding_preview,
+                embedded_at: new Date().toISOString(),
+              }
+            : item
+        ),
+        ingestion: {
+          status: 'completed',
+          fileName: uploadedFile!.original_name,
+          chunkCount: embeddedFile.chunk_count,
+          embeddingCount: embeddedFile.embedding_count,
+          embeddingDimension: embeddedFile.embedding_dimension,
+        },
+      }));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '文件处理失败';
+      set((state) => ({
+        files: uploadedFile
+          ? state.files.map((item) =>
+              item.id === uploadedFile!.id
+                ? { ...item, status: 'failed', error_message: errorMessage }
+                : item
+            )
+          : state.files,
+        ingestion: {
+          status: 'failed',
+          fileName: uploadedFile?.original_name ?? file.name,
+          errorMessage,
+        },
+      }));
+      throw error;
     } finally {
       set({ uploading: false });
     }

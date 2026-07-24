@@ -71,6 +71,24 @@ export interface FileItem {
   error_message?: string;
 }
 
+export type FileIngestionStatus =
+  | 'idle'
+  | 'uploading'
+  | 'parsing'
+  | 'chunking'
+  | 'embedding'
+  | 'completed'
+  | 'failed';
+
+export interface FileIngestionState {
+  status: FileIngestionStatus;
+  fileName?: string;
+  errorMessage?: string;
+  chunkCount?: number;
+  embeddingCount?: number;
+  embeddingDimension?: number;
+}
+
 /** PPT 任务 */
 export interface PptJob {
   id: string;
