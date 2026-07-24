@@ -24,6 +24,7 @@ import {
   EyeOutlined,
   SplitCellsOutlined,
   ClusterOutlined,
+  DatabaseOutlined,
 } from '@ant-design/icons';
 import { useFileStore } from '../stores/fileStore';
 import type { FileItem } from '../types';
@@ -36,6 +37,7 @@ const statusMap: Record<FileItem['status'], { color: string; text: string }> = {
   ready: { color: 'success', text: '已解析' },
   chunked: { color: 'blue', text: '已切块' },
   embedded: { color: 'purple', text: '已向量化' },
+  indexed: { color: 'cyan', text: '已索引' },
   failed: { color: 'error', text: '解析失败' },
 };
 
@@ -59,7 +61,8 @@ function FileIcon({ ext }: { ext: string }) {
 }
 
 export default function FileCenter() {
-  const { files, uploadFile, parseFile, chunkFile, embedFile, removeFile } = useFileStore();
+  const { files, uploadFile, parseFile, chunkFile, embedFile, storeVectors, removeFile } =
+    useFileStore();
   const [uploading, setUploading] = useState(false);
   const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
   const [chunkPreviewFile, setChunkPreviewFile] = useState<FileItem | null>(null);
@@ -114,6 +117,16 @@ export default function FileCenter() {
     }
   };
 
+  const handleStoreVectors = async (file: FileItem) => {
+    try {
+      await storeVectors(file.id);
+      message.success(`"${file.original_name}" 向量索引已保存`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '向量索引保存失败';
+      message.error(errorMessage);
+    }
+  };
+
   const columns = [
     {
       title: '文件名',
@@ -133,6 +146,7 @@ export default function FileCenter() {
               {typeof record.char_count === 'number' && ` · ${record.char_count} 字符`}
               {typeof record.chunk_count === 'number' && ` · ${record.chunk_count} chunks`}
               {typeof record.embedding_dimension === 'number' && ` · ${record.embedding_dimension} 维`}
+              {record.vector_store_path && ` · ${record.vector_store_path}`}
             </Text>
             {record.error_message && (
               <>
@@ -156,7 +170,7 @@ export default function FileCenter() {
         const icon =
           status === 'processing' ? (
             <LoadingOutlined />
-          ) : status === 'ready' || status === 'chunked' || status === 'embedded' ? (
+          ) : status === 'ready' || status === 'chunked' || status === 'embedded' || status === 'indexed' ? (
             <CheckCircleOutlined />
           ) : status === 'failed' ? (
             <CloseCircleOutlined />
@@ -191,7 +205,7 @@ export default function FileCenter() {
                 切块
               </Button>
             )}
-            {(record.status === 'ready' || record.status === 'chunked' || record.status === 'embedded') && (
+            {(record.status === 'ready' || record.status === 'chunked' || record.status === 'embedded' || record.status === 'indexed') && (
               <Button
                 size="small"
                 type="link"
@@ -211,7 +225,17 @@ export default function FileCenter() {
                 向量化
               </Button>
             )}
-            {(record.status === 'chunked' || record.status === 'embedded') && (
+            {record.status === 'embedded' && (
+              <Button
+                size="small"
+                type="link"
+                icon={<DatabaseOutlined />}
+                onClick={() => handleStoreVectors(record)}
+              >
+                索引
+              </Button>
+            )}
+            {(record.status === 'chunked' || record.status === 'embedded' || record.status === 'indexed') && (
               <Button
                 size="small"
                 type="link"
@@ -221,7 +245,7 @@ export default function FileCenter() {
                 chunks
               </Button>
             )}
-            {record.status === 'embedded' && (
+            {(record.status === 'embedded' || record.status === 'indexed') && (
               <Button
                 size="small"
                 type="link"
@@ -323,7 +347,7 @@ export default function FileCenter() {
         )}
 
         {/* v0.5 prepares chunks only; embedding and RAG start in later milestones. */}
-        {files.some((f) => ['uploaded', 'ready', 'chunked', 'embedded'].includes(f.status)) && (
+        {files.some((f) => ['uploaded', 'ready', 'chunked', 'embedded', 'indexed'].includes(f.status)) && (
           <div
             style={{
               marginTop: 16,
@@ -336,7 +360,7 @@ export default function FileCenter() {
             <Space>
               <LoadingOutlined style={{ color: '#fa8c16' }} />
               <Text style={{ color: '#d46b08', fontSize: 13 }}>
-                当前支持文档解析、文本切块和 mock 向量化。向量存储与 RAG 问答将在后续阶段开放。
+                当前支持文档解析、文本切块、mock 向量化和本地向量索引保存。RAG 问答将在后续阶段开放。
               </Text>
             </Space>
           </div>

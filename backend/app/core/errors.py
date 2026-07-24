@@ -51,3 +51,13 @@ class EmbeddingConfigError(AppError):
 class EmbeddingProviderError(AppError):
     def __init__(self, message: str = "Embedding provider request failed") -> None:
         super().__init__(message=message, code=46002, status_code=502)
+
+
+class VectorStoreError(AppError):
+    def __init__(self, message: str = "Vector store operation failed") -> None:
+        super().__init__(message=message, code=47001, status_code=500)
+
+
+class VectorStoreNotFoundError(AppError):
+    def __init__(self, message: str = "Vector store index not found") -> None:
+        super().__init__(message=message, code=47002, status_code=404)

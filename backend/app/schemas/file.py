@@ -58,3 +58,38 @@ class EmbedFileResponse(BaseModel):
     embedding_count: int
     embedding_dimension: int
     embedding_preview: list[EmbeddingPreview]
+
+
+class StoreVectorRequest(BaseModel):
+    extension: str
+
+
+class VectorStoreItem(BaseModel):
+    chunk_id: str
+    file_id: str
+    chunk_index: int
+    content: str
+    char_count: int
+    embedding: list[float]
+
+
+class VectorStoreIndex(BaseModel):
+    file_id: str
+    status: str
+    embedding_model: str
+    embedding_dimension: int
+    chunk_count: int
+    embedding_count: int
+    created_at: str
+    items: list[VectorStoreItem]
+
+
+class VectorStoreSummaryResponse(BaseModel):
+    file_id: str
+    status: str
+    chunk_count: int
+    embedding_count: int
+    embedding_dimension: int
+    embedding_model: str
+    storage_path: str
+    created_at: str

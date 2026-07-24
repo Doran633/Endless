@@ -4,9 +4,9 @@
 
 ## 1. 当前版本
 
-当前版本：`v0.6.1`
+当前版本：`v0.7.0`
 
-当前阶段：聊天侧文件接入体验优化阶段。
+当前阶段：VectorStore 本地向量存储闭环阶段。
 
 当前状态判断：
 
@@ -23,8 +23,9 @@
 - 已完成文本切块闭环：后端将解析全文切成 chunks，前端展示 chunk 数量和预览。
 - 已完成 mock embedding 向量化闭环：后端为 chunks 生成稳定 mock vectors，前端展示 embedding 数量、维度和向量预览。
 - 已完成聊天侧文件接入体验优化：聊天输入区可以上传文件，并自动串联上传、解析、切块和 mock 向量化流程。
+- 已完成本地 VectorStore 闭环：后端将 chunks 和 mock embeddings 保存到 `backend/vector_store/` 的 JSON 索引文件，前端展示 indexed 状态和索引摘要。
 - 已完成北辰agent UI 简化优化：统一产品命名，聚焦“对话 + 文件中心”，隐藏当前暂不实现的 PPT 入口。
-- 向量存储、RAG 问答、数据库持久化尚未开始实现。
+- 向量检索、RAG 问答、数据库持久化尚未开始实现。
 
 ## 2. 当前 v1.0 目标
 
@@ -78,6 +79,9 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 - embedding 数量、维度和向量预览展示。
 - 聊天输入区文件上传入口。
 - 聊天侧文件自动处理状态展示。
+- 聊天侧文件自动本地索引保存。
+- 文件中心本地索引保存触发入口。
+- indexed 状态和本地索引路径摘要展示。
 - 北辰agent 品牌界面。
 - Zustand 状态管理。
 - 本地 Mock API：`frontend/src/api/mock.ts`。
@@ -91,12 +95,12 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 - 前端文件解析已经调用后端 `/api/v1/files/{file_id}/parse`。
 - 前端文件切块已经调用后端 `/api/v1/files/{file_id}/chunks`。
 - 前端文件向量化已经调用后端 `/api/v1/files/{file_id}/embeddings`。
-- 聊天侧文件上传会自动串联 `/api/v1/files`、`/api/v1/files/{file_id}/parse`、`/api/v1/files/{file_id}/chunks` 和 `/api/v1/files/{file_id}/embeddings`。
+- 前端文件本地索引保存已经调用后端 `/api/v1/files/{file_id}/vector-store`。
+- 聊天侧文件上传会自动串联 `/api/v1/files`、`/api/v1/files/{file_id}/parse`、`/api/v1/files/{file_id}/chunks`、`/api/v1/files/{file_id}/embeddings` 和 `/api/v1/files/{file_id}/vector-store`。
 - 前端会话、历史消息和初始文件列表仍使用 Mock 数据。
 - 文件列表刷新、文件删除和文件持久化列表接口尚未实现。
 - 解析结果只保存在当前前端状态中，刷新页面后不会恢复。
-- chunk 结果只保存在当前前端状态中，刷新页面后不会恢复。
-- embedding 结果只保存在当前前端状态中，刷新页面后不会恢复。
+- chunk 与 embedding 内容已经可以写入本地 JSON 索引，但文件列表和索引状态刷新后仍不会自动恢复。
 
 ### 3.2 后端基础聊天模块
 
@@ -173,6 +177,21 @@ v1.0 目标是构建一个独立网页版 AI 助手。
   - `embedding_count`
   - `embedding_dimension`
   - `embedding_preview`
+- 本地向量索引接口：
+  - `POST /api/v1/files/{file_id}/vector-store`
+  - `GET /api/v1/files/{file_id}/vector-store`
+- `VectorStoreService` 本地向量存储业务边界。
+- 本地索引目录：`backend/vector_store/`。
+- 本地索引文件结构包含：
+  - `file_id`
+  - `chunk_id`
+  - `chunk_index`
+  - `content`
+  - `char_count`
+  - `embedding`
+  - `embedding_dimension`
+  - `embedding_model`
+  - `created_at`
 - 文档解析响应字段：
   - `file_id`
   - `status`
@@ -194,7 +213,7 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 - 暂不支持文件下载、文件删除、文件列表查询。
 - 暂不支持 OCR、病毒扫描、对象存储。
 - PDF 解析仅支持可复制文本型 PDF，不支持扫描件 OCR。
-- chunk 结果尚未写入数据库或向量存储。
+- chunk 和 embedding 结果已经可以写入本地 JSON VectorStore，但尚未写入数据库或 pgvector。
 - 当前切块策略是字符数切块，不是 tokenizer-aware 或 semantic chunk。
 - embedding 结果尚未写入向量数据库。
 - 当前 embedding 是 mock vector，不代表真实语义。
@@ -223,6 +242,8 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 - v0.6 Embedding 抽象与调用报告。
 - v0.6.1 聊天侧文件接入体验优化计划。
 - v0.6.1 聊天侧文件接入体验优化报告。
+- v0.7 VectorStore 向量存储计划。
+- v0.7 VectorStore 向量存储报告。
 - v0.4.2 北辰agent UI 简化优化。
 - v1.0 路线图。
 - 文档同步审查报告。
@@ -236,21 +257,20 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 
 当前正在推进的模块：
 
-- v0.6.1 聊天侧文件接入体验优化收尾。
+- v0.7 VectorStore 本地向量存储收尾。
 - 文档状态同步。
-- RAG 前置模块规划。
+- Retrieval 与 RAG 前置模块规划。
 
 下一步最适合推进：
 
-- 进行 v0.6.1 浏览器联调：在聊天输入区上传文件，确认自动完成上传、解析、切块和 mock 向量化。
-- 补充后端文件上传和解析接口的最小自动化测试。
-- 进入 v0.7 VectorStore 向量存储设计。
+- 进行 v0.7 浏览器联调：在聊天输入区上传文件，确认自动完成上传、解析、切块、mock 向量化和本地索引保存。
+- 补充后端文件上传、解析、切块、embedding 和 vector-store 接口的最小自动化测试。
+- 进入 v0.8 Retrieval 检索服务设计。
 
 ## 5. 未开始模块
 
 当前尚未开始实现：
 
-- 向量数据库或向量存储抽象。
 - RAG 检索服务。
 - 基于文件的问答接口。
 - 聊天会话持久化。
@@ -315,7 +335,7 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 
 当前项目不是完整可用的 AI 应用 MVP，而是：
 
-**北辰agent 简洁 UI + 后端真实 LLM 聊天闭环 + 后端本地文件上传闭环 + 最小文档解析闭环 + 文本切块闭环 + mock embedding 闭环 + 聊天侧文件自动接入体验 + v1.0 文档规划。**
+**北辰agent 简洁 UI + 后端真实 LLM 聊天闭环 + 后端本地文件上传闭环 + 最小文档解析闭环 + 文本切块闭环 + mock embedding 闭环 + 本地 VectorStore 闭环 + 聊天侧文件自动接入体验 + v1.0 文档规划。**
 
 项目已经具备继续演进的基础边界：
 
@@ -328,12 +348,13 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 - 文档解析已经通过 `DocumentParserService` 预留后续 chunk、embedding 和 RAG 入口。
 - 文本切块已经通过 `ChunkService` 预留后续 embedding 和向量检索入口。
 - Embedding 已经通过 `EmbeddingService` 和 `EmbeddingProvider` 预留后续真实 embedding provider、VectorStore 和 RAG 入口。
-- 聊天侧文件上传已经通过前端 `fileStore.ingestFile()` 串联现有文件处理 API，但仍不提供文件问答能力。
+- VectorStore 已经通过 `VectorStoreService` 预留后续 RetrievalService 和 pgvector 替换入口。
+- 聊天侧文件上传已经通过前端 `fileStore.ingestFile()` 串联现有文件处理 API 并保存本地索引，但仍不提供文件问答能力。
 
 当前最大缺口是：
 
-- 向量存储、向量检索和 RAG 主链路尚未开始。
+- 向量检索和 RAG 主链路尚未开始。
 - 数据库和持久化能力尚未建立。
 - AI 数据分析仍只是规划能力，尚未进入实现。
 
-因此，下一阶段应进入 v0.7 VectorStore 向量存储规划；AI 数据分析继续保留规划边界，不挤占当前主链路。
+因此，下一阶段应进入 v0.8 Retrieval 检索服务规划；AI 数据分析继续保留规划边界，不挤占当前主链路。

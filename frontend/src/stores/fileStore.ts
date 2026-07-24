@@ -5,6 +5,7 @@ import { uploadFile as uploadFileApi } from '../api/fileApi';
 import { parseFile as parseFileApi } from '../api/fileApi';
 import { chunkFile as chunkFileApi } from '../api/fileApi';
 import { embedFile as embedFileApi } from '../api/fileApi';
+import { storeFileVectors as storeFileVectorsApi } from '../api/fileApi';
 
 interface FileState {
   files: FileItem[];
@@ -16,6 +17,7 @@ interface FileState {
   parseFile: (id: string) => Promise<void>;
   chunkFile: (id: string) => Promise<void>;
   embedFile: (id: string) => Promise<void>;
+  storeVectors: (id: string) => Promise<void>;
   removeFile: (id: string) => void;
   getFileById: (id: string) => FileItem | undefined;
 }
@@ -109,6 +111,39 @@ export const useFileStore = create<FileState>((set, get) => ({
           chunkCount: embeddedFile.chunk_count,
           embeddingCount: embeddedFile.embedding_count,
           embeddingDimension: embeddedFile.embedding_dimension,
+        },
+      }));
+
+      set((state) => ({
+        ingestion: {
+          ...state.ingestion,
+          status: 'indexing',
+          fileName: uploadedFile!.original_name,
+        },
+      }));
+
+      const storedFile = await storeFileVectorsApi(uploadedFile.id, uploadedFile.extension);
+      set((state) => ({
+        files: state.files.map((item) =>
+          item.id === uploadedFile!.id
+            ? {
+                ...item,
+                status: 'indexed',
+                chunk_count: storedFile.chunk_count,
+                embedding_count: storedFile.embedding_count,
+                embedding_dimension: storedFile.embedding_dimension,
+                vector_store_path: storedFile.storage_path,
+                indexed_at: storedFile.created_at,
+              }
+            : item
+        ),
+        ingestion: {
+          status: 'completed',
+          fileName: uploadedFile!.original_name,
+          chunkCount: storedFile.chunk_count,
+          embeddingCount: storedFile.embedding_count,
+          embeddingDimension: storedFile.embedding_dimension,
+          vectorStorePath: storedFile.storage_path,
         },
       }));
     } catch (error) {
@@ -219,7 +254,11 @@ export const useFileStore = create<FileState>((set, get) => ({
       throw new Error('文件不存在');
     }
 
-    if (targetFile.status !== 'chunked' && targetFile.status !== 'embedded') {
+    if (
+      targetFile.status !== 'chunked' &&
+      targetFile.status !== 'embedded' &&
+      targetFile.status !== 'indexed'
+    ) {
       throw new Error('请先完成文本切块');
     }
 
@@ -248,6 +287,50 @@ export const useFileStore = create<FileState>((set, get) => ({
       }));
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '向量化失败';
+      set((state) => ({
+        files: state.files.map((file) =>
+          file.id === id ? { ...file, status: 'failed', error_message: errorMessage } : file
+        ),
+      }));
+      throw error;
+    }
+  },
+
+  storeVectors: async (id: string) => {
+    const targetFile = get().files.find((file) => file.id === id);
+    if (!targetFile) {
+      throw new Error('文件不存在');
+    }
+
+    if (targetFile.status !== 'embedded' && targetFile.status !== 'indexed') {
+      throw new Error('请先完成向量化');
+    }
+
+    set((state) => ({
+      files: state.files.map((file) =>
+        file.id === id ? { ...file, status: 'processing', error_message: undefined } : file
+      ),
+    }));
+
+    try {
+      const storedFile = await storeFileVectorsApi(id, targetFile.extension);
+      set((state) => ({
+        files: state.files.map((file) =>
+          file.id === id
+            ? {
+                ...file,
+                status: 'indexed',
+                chunk_count: storedFile.chunk_count,
+                embedding_count: storedFile.embedding_count,
+                embedding_dimension: storedFile.embedding_dimension,
+                vector_store_path: storedFile.storage_path,
+                indexed_at: storedFile.created_at,
+              }
+            : file
+        ),
+      }));
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '向量索引保存失败';
       set((state) => ({
         files: state.files.map((file) =>
           file.id === id ? { ...file, status: 'failed', error_message: errorMessage } : file

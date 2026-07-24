@@ -45,4 +45,5 @@ docker-data/
 
 # Project specific
 backend/uploads/
+backend/vector_store/
 backend/ppt_outputs/

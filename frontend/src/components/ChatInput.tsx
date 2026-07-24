@@ -39,7 +39,7 @@ export default function ChatInput() {
     }
   };
 
-  const isIngesting = ['uploading', 'parsing', 'chunking', 'embedding'].includes(
+  const isIngesting = ['uploading', 'parsing', 'chunking', 'embedding', 'indexing'].includes(
     ingestion.status
   );
 
@@ -49,7 +49,8 @@ export default function ChatInput() {
     parsing: '正在解析文档...',
     chunking: '正在切分文本...',
     embedding: '正在生成 mock 向量...',
-    completed: '文件已准备，后续 RAG 阶段可用于问答',
+    indexing: '正在保存本地向量索引...',
+    completed: '文件已索引，后续 RAG 阶段可用于检索问答',
     failed: ingestion.errorMessage || '文件处理失败',
   };
 
@@ -66,7 +67,7 @@ export default function ChatInput() {
 
     try {
       await ingestFile(file);
-      message.success(`"${file.name}" 已完成解析、切块和向量化`);
+      message.success(`"${file.name}" 已完成解析、切块、向量化和索引保存`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '文件处理失败';
       message.error(errorMessage);
@@ -189,6 +190,9 @@ export default function ChatInput() {
               {ingestion.status === 'completed' &&
                 typeof ingestion.embeddingCount === 'number' &&
                 ` · ${ingestion.embeddingCount} embeddings / ${ingestion.embeddingDimension} 维`}
+              {ingestion.status === 'completed' &&
+                ingestion.vectorStorePath &&
+                ` · ${ingestion.vectorStorePath}`}
             </Text>
           </div>
         )}

@@ -54,7 +54,7 @@ export interface EmbeddingPreview {
 export interface FileItem {
   id: string;
   original_name: string;
-  status: 'uploaded' | 'processing' | 'ready' | 'chunked' | 'embedded' | 'failed';
+  status: 'uploaded' | 'processing' | 'ready' | 'chunked' | 'embedded' | 'indexed' | 'failed';
   size_bytes: number;
   created_at: string;
   extension: string;
@@ -68,6 +68,8 @@ export interface FileItem {
   embedding_dimension?: number;
   embedding_preview?: EmbeddingPreview[];
   embedded_at?: string;
+  vector_store_path?: string;
+  indexed_at?: string;
   error_message?: string;
 }
 
@@ -77,6 +79,7 @@ export type FileIngestionStatus =
   | 'parsing'
   | 'chunking'
   | 'embedding'
+  | 'indexing'
   | 'completed'
   | 'failed';
 
@@ -87,6 +90,7 @@ export interface FileIngestionState {
   chunkCount?: number;
   embeddingCount?: number;
   embeddingDimension?: number;
+  vectorStorePath?: string;
 }
 
 /** PPT 任务 */

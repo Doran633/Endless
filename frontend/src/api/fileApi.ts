@@ -103,3 +103,46 @@ export async function embedFile(fileId: string, extension: string): Promise<Embe
 
   return payload.data;
 }
+
+export interface StoreVectorResponse {
+  file_id: string;
+  status: 'stored';
+  chunk_count: number;
+  embedding_count: number;
+  embedding_dimension: number;
+  embedding_model: string;
+  storage_path: string;
+  created_at: string;
+}
+
+export async function storeFileVectors(
+  fileId: string,
+  extension: string
+): Promise<StoreVectorResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/files/${fileId}/vector-store`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ extension }),
+  });
+
+  const payload = (await response.json()) as ApiResponse<StoreVectorResponse>;
+
+  if (!response.ok || payload.code !== 0 || !payload.data) {
+    throw new Error(payload.message || '向量索引保存失败');
+  }
+
+  return payload.data;
+}
+
+export async function getFileVectorStore(fileId: string): Promise<StoreVectorResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/files/${fileId}/vector-store`);
+  const payload = (await response.json()) as ApiResponse<StoreVectorResponse>;
+
+  if (!response.ok || payload.code !== 0 || !payload.data) {
+    throw new Error(payload.message || '向量索引读取失败');
+  }
+
+  return payload.data;
+}

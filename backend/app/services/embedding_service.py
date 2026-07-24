@@ -16,10 +16,7 @@ class EmbeddingService:
         if not chunks:
             raise EmbeddingProviderError("No chunks provided for embedding")
 
-        vectors = self.provider.embed_texts([chunk.content for chunk in chunks])
-        if len(vectors) != len(chunks):
-            raise EmbeddingProviderError("Embedding provider returned an unexpected vector count")
-
+        vectors = self.embed_chunk_vectors(chunks)
         dimension = self._validate_vectors(vectors)
         previews = [
             EmbeddingPreview(
@@ -38,6 +35,17 @@ class EmbeddingService:
             embedding_dimension=dimension,
             embedding_preview=previews,
         )
+
+    def embed_chunk_vectors(self, chunks: list[DocumentChunk]) -> list[list[float]]:
+        if not chunks:
+            raise EmbeddingProviderError("No chunks provided for embedding")
+
+        vectors = self.provider.embed_texts([chunk.content for chunk in chunks])
+        if len(vectors) != len(chunks):
+            raise EmbeddingProviderError("Embedding provider returned an unexpected vector count")
+
+        self._validate_vectors(vectors)
+        return vectors
 
     def _create_provider(self) -> EmbeddingProvider:
         if settings.embedding_provider == "mock":
