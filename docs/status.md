@@ -4,9 +4,9 @@
 
 ## 1. 当前版本
 
-当前版本：`v1.0.0`
+当前版本：`v1.0.1`
 
-当前阶段：Real Embedding MVP 阶段。
+当前阶段：GitHub 发布前整理阶段。
 
 当前状态判断：
 
@@ -29,6 +29,7 @@
 - 已完成最小 RAG 单文件问答闭环：后端基于 RetrievalService 返回的 top_k chunks 组装 RAG prompt，调用现有 LLMProvider 生成答案，前端文件中心展示回答和引用 chunks。
 - 已完成聊天侧 RAG 问答体验优化：聊天框上传文件并完成 indexed 后，当前对话会绑定最近一个文件，用户继续提问时调用 `/api/v1/files/{file_id}/ask`，回答作为聊天消息展示，并附带引用 chunks 摘要。
 - 已完成 GitHub 分享前基础整理：新增 `README.md`，更新 `backend/.env.example` 和 `.gitignore`，明确 API Key、上传文件和本地向量索引不应提交。
+- 已完成 v1.0.1 发布前检查：后端编译检查、前端类型检查、敏感文件忽略检查和基础密钥扫描均已通过。
 - 已完成北辰agent UI 简化优化：统一产品命名，聚焦“对话 + 文件中心”，隐藏当前暂不实现的 PPT 入口。
 - 数据库持久化尚未开始实现。
 
@@ -281,14 +282,14 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 
 当前正在推进的模块：
 
-- v1.0 Real Embedding MVP 收尾。
+- v1.0.1 GitHub 发布前整理收尾。
 - 文档状态同步。
-- 真实 embedding 配置验证与文档同步。
+- 发布前 Git 状态、安全检查和文档同步。
 
 下一步最适合推进：
 
-- 使用真实 embedding 配置重新上传文件并索引，验证 RAG 检索质量提升。
-- 准备 GitHub 分享前检查，确认 `.env`、uploads、vector_store、`.claude/` 不进入 Git。
+- 处理最后一个历史文档未跟踪项。
+- 准备 GitHub remote、tag 和首次 push。
 
 ## 5. 未开始模块
 
@@ -354,7 +355,7 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 
 当前项目不是完整可用的 AI 应用 MVP，而是：
 
-**北辰agent 简洁 UI + 后端真实 LLM 聊天闭环 + 后端本地文件上传闭环 + 最小文档解析闭环 + 文本切块闭环 + Mock / OpenAI-compatible embedding 闭环 + 本地 VectorStore 闭环 + Retrieval 检索闭环 + 单文件 RAG 问答闭环 + 聊天侧 RAG 问答体验 + GitHub 分享基础整理。**
+**北辰agent 简洁 UI + 后端真实 LLM 聊天闭环 + 后端本地文件上传闭环 + 最小文档解析闭环 + 文本切块闭环 + Mock / OpenAI-compatible embedding 闭环 + 本地 VectorStore 闭环 + Retrieval 检索闭环 + 单文件 RAG 问答闭环 + 聊天侧 RAG 问答体验 + GitHub 发布前整理。**
 
 项目已经具备继续演进的基础边界：
 
@@ -378,4 +379,4 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 - 数据库和持久化能力尚未建立。
 - AI 数据分析仍只是规划能力，尚未进入实现。
 
-因此，下一阶段应进行 v1.0 真实 embedding 配置联调、README 使用验证和 GitHub 分享前检查；AI 数据分析继续保留规划边界，不挤占当前主链路。
+因此，下一阶段可以进行 GitHub remote 配置、`v1.0.0` tag 发布和首次 push；之后再进入 v1.1 数据库持久化设计。AI 数据分析继续保留规划边界，不挤占当前主链路。
