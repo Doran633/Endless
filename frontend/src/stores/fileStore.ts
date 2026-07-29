@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { FileIngestionState, FileItem } from '../types';
-import { mockFiles } from '../api/mock';
+import { listFiles as listFilesApi } from '../api/fileApi';
 import { uploadFile as uploadFileApi } from '../api/fileApi';
 import { parseFile as parseFileApi } from '../api/fileApi';
 import { chunkFile as chunkFileApi } from '../api/fileApi';
@@ -14,6 +14,7 @@ interface FileState {
   activeRagFileId?: string;
   activeRagFileName?: string;
 
+  loadFiles: () => Promise<void>;
   uploadFile: (file: File) => Promise<void>;
   ingestFile: (file: File) => Promise<void>;
   parseFile: (id: string) => Promise<void>;
@@ -26,11 +27,16 @@ interface FileState {
 }
 
 export const useFileStore = create<FileState>((set, get) => ({
-  files: mockFiles,
+  files: [],
   uploading: false,
   ingestion: { status: 'idle' },
   activeRagFileId: undefined,
   activeRagFileName: undefined,
+
+  loadFiles: async () => {
+    const files = await listFilesApi();
+    set({ files });
+  },
 
   uploadFile: async (file: File) => {
     set({ uploading: true });

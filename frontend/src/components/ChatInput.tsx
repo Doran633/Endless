@@ -183,13 +183,13 @@ export default function ChatInput() {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 8,
+              gap: 10,
               marginTop: 8,
-              padding: '8px 12px',
+              padding: '10px 12px',
               borderRadius: 8,
-              background: ingestion.status === 'failed' ? '#fff2f0' : '#f6ffed',
+              background: ingestion.status === 'failed' ? '#fff2f0' : '#f8fbff',
               border:
-                ingestion.status === 'failed' ? '1px solid #ffccc7' : '1px solid #b7eb8f',
+                ingestion.status === 'failed' ? '1px solid #ffccc7' : '1px solid #d6e4ff',
             }}
           >
             {isIngesting ? (
@@ -203,11 +203,11 @@ export default function ChatInput() {
               style={{
                 flex: 1,
                 fontSize: 12,
-                color: ingestion.status === 'failed' ? '#a8071a' : '#237804',
+                color: ingestion.status === 'failed' ? '#a8071a' : '#3150a5',
               }}
             >
               {currentRagFile
-                ? `当前文件：${currentRagFile.fileName} · ${statusText || '可进行 RAG 问答'}`
+                ? `知识文件已连接：${currentRagFile.fileName} · ${statusText || '可以基于该文件提问'}`
                 : `${ingestion.fileName ? `${ingestion.fileName} · ` : ''}${statusText}`}
               {ingestion.status === 'completed' &&
                 typeof ingestion.embeddingCount === 'number' &&

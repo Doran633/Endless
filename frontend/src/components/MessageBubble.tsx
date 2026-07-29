@@ -592,7 +592,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
         display: 'flex',
         gap: 14,
         padding: '18px 24px',
-        background: isUser ? '#fff' : '#f7f7f8',
+        background: isUser ? 'rgba(255, 255, 255, 0.92)' : 'rgba(248, 251, 255, 0.78)',
         borderBottom: '1px solid #ececf1',
       }}
     >
@@ -636,21 +636,28 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
         {message.metadata?.used_chunks && message.metadata.used_chunks.length > 0 && !isUser && (
           <div
             style={{
-              marginTop: 12,
-              padding: '10px 12px',
+              marginTop: 14,
+              padding: '12px 14px',
               borderRadius: 8,
-              background: '#f0f5ff',
-              border: '1px solid #d6e4ff',
+              background: '#fbfcff',
+              border: '1px solid #e6ebf5',
             }}
           >
-            <Text style={{ display: 'block', color: '#3150a5', fontSize: 12, fontWeight: 600 }}>
-              引用片段 · {message.metadata.rag_file_name || '当前文件'}
+            <Text style={{ display: 'block', color: '#1f2a44', fontSize: 12, fontWeight: 600 }}>
+              参考片段 · {message.metadata.rag_file_name || '当前文件'}
             </Text>
             {message.metadata.used_chunks.map((chunk, index) => (
-              <div key={chunk.chunk_id} style={{ marginTop: 8 }}>
-                <Text style={{ display: 'block', color: '#597ef7', fontSize: 11 }}>
-                  引用 {index + 1} · Chunk {chunk.chunk_index + 1} · score{' '}
-                  {chunk.score.toFixed(6)}
+              <div
+                key={chunk.chunk_id}
+                style={{
+                  marginTop: 10,
+                  paddingTop: 10,
+                  borderTop: index === 0 ? 'none' : '1px solid #eef1f6',
+                }}
+              >
+                <Text style={{ display: 'block', color: '#697386', fontSize: 11 }}>
+                  片段 {index + 1} · Chunk {chunk.chunk_index + 1} · 相关度{' '}
+                  {chunk.score.toFixed(4)}
                 </Text>
                 <Text style={{ color: '#595959', fontSize: 12, lineHeight: 1.6 }}>
                   {chunk.content_preview}

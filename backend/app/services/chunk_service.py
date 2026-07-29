@@ -1,4 +1,6 @@
 from app.core.errors import ChunkError
+from app.db.database import SessionLocal
+from app.repositories.file_repository import FileRepository
 from app.schemas.file import ChunkFileResponse, DocumentChunk
 
 
@@ -8,13 +10,19 @@ class ChunkService:
     preview_limit = 3
 
     def chunk_text(self, file_id: str, text: str) -> ChunkFileResponse:
-        chunks = self.create_chunks(file_id, text)
-        return ChunkFileResponse(
-            file_id=file_id,
-            status="chunked",
-            chunk_count=len(chunks),
-            chunk_preview=chunks[: self.preview_limit],
-        )
+        try:
+            chunks = self.create_chunks(file_id, text)
+            with SessionLocal() as db:
+                FileRepository(db).update_chunked(file_id, chunk_count=len(chunks))
+            return ChunkFileResponse(
+                file_id=file_id,
+                status="chunked",
+                chunk_count=len(chunks),
+                chunk_preview=chunks[: self.preview_limit],
+            )
+        except Exception as exc:
+            self._mark_failed(file_id, str(exc))
+            raise
 
     def create_chunks(self, file_id: str, text: str) -> list[DocumentChunk]:
         normalized_text = self._normalize_text(text)
@@ -26,6 +34,20 @@ class ChunkService:
             raise ChunkError("No chunks generated from document text")
 
         return chunks
+
+    def create_file_chunks(self, file_id: str, text: str) -> list[DocumentChunk]:
+        try:
+            return self.create_chunks(file_id, text)
+        except Exception as exc:
+            self._mark_failed(file_id, str(exc))
+            raise
+
+    def _mark_failed(self, file_id: str, error_message: str) -> None:
+        try:
+            with SessionLocal() as db:
+                FileRepository(db).touch_failed(file_id, error_message)
+        except Exception:
+            pass
 
     def _normalize_text(self, text: str) -> str:
         paragraphs = [paragraph.strip() for paragraph in text.split("\n") if paragraph.strip()]

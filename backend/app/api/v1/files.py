@@ -28,6 +28,12 @@ async def upload_file(file: UploadFile = File(...)) -> dict[str, object]:
     return ok(result.model_dump())
 
 
+@router.get("/files")
+async def list_files() -> dict[str, object]:
+    result = FileService().list_files()
+    return ok(result.model_dump())
+
+
 @router.post("/files/{file_id}/parse")
 async def parse_file(file_id: str, request: ParseFileRequest) -> dict[str, object]:
     result = DocumentParserService().parse(file_id, request.extension)
@@ -44,7 +50,7 @@ async def chunk_file(file_id: str, request: ChunkFileRequest) -> dict[str, objec
 @router.post("/files/{file_id}/embeddings")
 async def embed_file(file_id: str, request: EmbedFileRequest) -> dict[str, object]:
     document_text = DocumentParserService().parse_text(file_id, request.extension)
-    chunks = ChunkService().create_chunks(file_id, document_text)
+    chunks = ChunkService().create_file_chunks(file_id, document_text)
     result = EmbeddingService().embed_chunks(file_id, chunks)
     return ok(result.model_dump())
 
@@ -52,9 +58,9 @@ async def embed_file(file_id: str, request: EmbedFileRequest) -> dict[str, objec
 @router.post("/files/{file_id}/vector-store")
 async def store_file_vectors(file_id: str, request: StoreVectorRequest) -> dict[str, object]:
     document_text = DocumentParserService().parse_text(file_id, request.extension)
-    chunks = ChunkService().create_chunks(file_id, document_text)
+    chunks = ChunkService().create_file_chunks(file_id, document_text)
     embedding_service = EmbeddingService()
-    vectors = embedding_service.embed_chunk_vectors(chunks)
+    vectors = embedding_service.embed_file_vectors(file_id, chunks)
     result = VectorStoreService().save_file_vectors(
         file_id=file_id,
         chunks=chunks,

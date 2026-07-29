@@ -31,11 +31,11 @@ export default function ChatArea() {
 
   return (
     <div
+      className="beichen-surface"
       style={{
         flex: 1,
         display: 'flex',
         flexDirection: 'column',
-        background: '#fff',
         minWidth: 0,
       }}
     >
@@ -70,10 +70,10 @@ export default function ChatArea() {
 
       {/* Messages */}
       <div
+        className="beichen-subtle-grid"
         style={{
           flex: 1,
           overflow: 'auto',
-          background: '#f7f7f8',
         }}
       >
         {currentMessages.map((msg) => (
@@ -88,7 +88,7 @@ export default function ChatArea() {
               borderBottom: '1px solid #ececf1',
               display: 'flex',
               gap: 14,
-              background: '#f7f7f8',
+              background: 'rgba(247, 249, 252, 0.82)',
             }}
           >
             <div

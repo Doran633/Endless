@@ -50,3 +50,4 @@ docker-data/
 backend/uploads/
 backend/vector_store/
 backend/ppt_outputs/
+backend/data/

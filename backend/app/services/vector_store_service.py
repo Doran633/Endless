@@ -4,6 +4,8 @@ from pathlib import Path
 
 from app.core.config import settings
 from app.core.errors import VectorStoreError, VectorStoreNotFoundError
+from app.db.database import SessionLocal
+from app.repositories.file_repository import FileRepository
 from app.schemas.file import (
     DocumentChunk,
     VectorStoreIndex,
@@ -25,46 +27,60 @@ class VectorStoreService:
         vectors: list[list[float]],
         embedding_model: str,
     ) -> VectorStoreSummaryResponse:
-        if not chunks:
-            raise VectorStoreError("Cannot store vectors without chunks")
-        if len(chunks) != len(vectors):
-            raise VectorStoreError("Chunk count and vector count do not match")
-
-        embedding_dimension = self._validate_vectors(vectors)
-        created_at = datetime.now(timezone.utc).isoformat()
-        items = [
-            VectorStoreItem(
-                chunk_id=chunk.chunk_id,
-                file_id=chunk.file_id,
-                chunk_index=chunk.chunk_index,
-                content=chunk.content,
-                char_count=chunk.char_count,
-                embedding=vectors[index],
-            )
-            for index, chunk in enumerate(chunks)
-        ]
-        index = VectorStoreIndex(
-            file_id=file_id,
-            status="stored",
-            embedding_model=embedding_model,
-            embedding_dimension=embedding_dimension,
-            chunk_count=len(chunks),
-            embedding_count=len(vectors),
-            created_at=created_at,
-            items=items,
-        )
-
-        self.store_dir.mkdir(parents=True, exist_ok=True)
-        storage_path = self._index_path(file_id)
         try:
+            if not chunks:
+                raise VectorStoreError("Cannot store vectors without chunks")
+            if len(chunks) != len(vectors):
+                raise VectorStoreError("Chunk count and vector count do not match")
+
+            embedding_dimension = self._validate_vectors(vectors)
+            created_at = datetime.now(timezone.utc).isoformat()
+            items = [
+                VectorStoreItem(
+                    chunk_id=chunk.chunk_id,
+                    file_id=chunk.file_id,
+                    chunk_index=chunk.chunk_index,
+                    content=chunk.content,
+                    char_count=chunk.char_count,
+                    embedding=vectors[index],
+                )
+                for index, chunk in enumerate(chunks)
+            ]
+            index = VectorStoreIndex(
+                file_id=file_id,
+                status="stored",
+                embedding_model=embedding_model,
+                embedding_dimension=embedding_dimension,
+                chunk_count=len(chunks),
+                embedding_count=len(vectors),
+                created_at=created_at,
+                items=items,
+            )
+
+            self.store_dir.mkdir(parents=True, exist_ok=True)
+            storage_path = self._index_path(file_id)
             storage_path.write_text(
                 json.dumps(index.model_dump(), ensure_ascii=False, indent=2),
                 encoding="utf-8",
             )
-        except OSError as exc:
-            raise VectorStoreError("Failed to write vector store index") from exc
 
-        return self._build_summary(index, storage_path)
+            result = self._build_summary(index, storage_path)
+            with SessionLocal() as db:
+                FileRepository(db).update_indexed(
+                    file_id,
+                    chunk_count=result.chunk_count,
+                    embedding_count=result.embedding_count,
+                    embedding_dimension=result.embedding_dimension,
+                    embedding_model=result.embedding_model,
+                    vector_store_path=result.storage_path,
+                )
+            return result
+        except OSError as exc:
+            self._mark_failed(file_id, "Failed to write vector store index")
+            raise VectorStoreError("Failed to write vector store index") from exc
+        except Exception as exc:
+            self._mark_failed(file_id, str(exc))
+            raise
 
     def get_file_vector_summary(self, file_id: str) -> VectorStoreSummaryResponse:
         index = self.load_file_vectors(file_id)
@@ -112,3 +128,10 @@ class VectorStoreService:
             storage_path=str(storage_path.relative_to(settings.backend_dir)),
             created_at=index.created_at,
         )
+
+    def _mark_failed(self, file_id: str, error_message: str) -> None:
+        try:
+            with SessionLocal() as db:
+                FileRepository(db).touch_failed(file_id, error_message)
+        except Exception:
+            pass

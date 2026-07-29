@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Typography,
   Upload,
@@ -27,6 +27,7 @@ import {
   ClusterOutlined,
   DatabaseOutlined,
   MessageOutlined,
+  InboxOutlined,
 } from '@ant-design/icons';
 import { useFileStore } from '../stores/fileStore';
 import { askFile, retrieveFileChunks } from '../api/fileApi';
@@ -34,14 +35,14 @@ import type { AskFileResponse, FileItem, RetrieveFileResponse } from '../types';
 
 const { Title, Text } = Typography;
 
-const statusMap: Record<FileItem['status'], { color: string; text: string }> = {
-  uploaded: { color: 'default', text: '已上传' },
-  processing: { color: 'processing', text: '处理中' },
-  ready: { color: 'success', text: '已解析' },
-  chunked: { color: 'blue', text: '已切块' },
-  embedded: { color: 'purple', text: '已向量化' },
-  indexed: { color: 'cyan', text: '已索引' },
-  failed: { color: 'error', text: '解析失败' },
+const statusMap: Record<FileItem['status'], { color: string; text: string; help: string }> = {
+  uploaded: { color: 'default', text: '待解析', help: '文件已保存，等待解析' },
+  processing: { color: 'processing', text: '处理中', help: '正在执行文件处理流程' },
+  ready: { color: 'success', text: '可预览', help: '文档已解析，可查看文本预览' },
+  chunked: { color: 'blue', text: '已切块', help: '文本已切分为检索片段' },
+  embedded: { color: 'purple', text: '已向量化', help: '片段已生成向量，等待保存索引' },
+  indexed: { color: 'cyan', text: '可问答', help: '索引已保存，可进行文件问答' },
+  failed: { color: 'error', text: '处理失败', help: '处理失败，请查看原因并重试' },
 };
 
 function formatSize(bytes: number): string {
@@ -63,8 +64,44 @@ function FileIcon({ ext }: { ext: string }) {
   }
 }
 
+function MetricTile({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone: 'neutral' | 'success' | 'warning' | 'danger';
+}) {
+  const toneMap = {
+    neutral: { background: '#f7f9fc', border: '#edf1f7', color: '#394150' },
+    success: { background: '#f6ffed', border: '#d9f7be', color: '#237804' },
+    warning: { background: '#fff7e6', border: '#ffe7ba', color: '#ad6800' },
+    danger: { background: '#fff2f0', border: '#ffccc7', color: '#a8071a' },
+  }[tone];
+
+  return (
+    <div
+      style={{
+        minHeight: 82,
+        padding: '14px 16px',
+        borderRadius: 8,
+        border: `1px solid ${toneMap.border}`,
+        background: toneMap.background,
+      }}
+    >
+      <Text type="secondary" style={{ display: 'block', fontSize: 12 }}>
+        {label}
+      </Text>
+      <Text strong style={{ display: 'block', marginTop: 8, fontSize: 28, color: toneMap.color }}>
+        {value}
+      </Text>
+    </div>
+  );
+}
+
 export default function FileCenter() {
-  const { files, uploadFile, parseFile, chunkFile, embedFile, storeVectors, removeFile } =
+  const { files, loadFiles, uploadFile, parseFile, chunkFile, embedFile, storeVectors, removeFile } =
     useFileStore();
   const [uploading, setUploading] = useState(false);
   const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
@@ -80,6 +117,18 @@ export default function FileCenter() {
   const [qaTopK, setQaTopK] = useState(3);
   const [asking, setAsking] = useState(false);
   const [qaResult, setQaResult] = useState<AskFileResponse | null>(null);
+  const totalFiles = files.length;
+  const indexedFiles = files.filter((file) => file.status === 'indexed').length;
+  const processingFiles = files.filter((file) => file.status === 'processing').length;
+  const failedFiles = files.filter((file) => file.status === 'failed').length;
+  const ragReadyFiles = indexedFiles;
+
+  useEffect(() => {
+    loadFiles().catch((error) => {
+      const errorMessage = error instanceof Error ? error.message : '文件列表读取失败';
+      message.error(errorMessage);
+    });
+  }, [loadFiles]);
 
   const handleUpload = async (file: File) => {
     setUploading(true);
@@ -224,7 +273,7 @@ export default function FileCenter() {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      width: 100,
+      width: 132,
       render: (status: FileItem['status']) => {
         const st = statusMap[status];
         const icon =
@@ -235,7 +284,16 @@ export default function FileCenter() {
           ) : status === 'failed' ? (
             <CloseCircleOutlined />
           ) : null;
-        return <Tag icon={icon} color={st.color}>{st.text}</Tag>;
+        return (
+          <div>
+            <Tag icon={icon} color={st.color} style={{ marginInlineEnd: 0 }}>
+              {st.text}
+            </Tag>
+            <Text type="secondary" style={{ display: 'block', marginTop: 4, fontSize: 11 }}>
+              {st.help}
+            </Text>
+          </div>
+        );
       },
     },
     {
@@ -355,10 +413,10 @@ export default function FileCenter() {
 
   return (
     <div
+      className="beichen-surface beichen-subtle-grid"
       style={{
         flex: 1,
         overflow: 'auto',
-        background: '#f5f7fa',
         padding: 32,
       }}
     >
@@ -366,32 +424,46 @@ export default function FileCenter() {
         {/* Header */}
         <div style={{ marginBottom: 24 }}>
           <Title level={3} style={{ margin: 0, color: '#1a1a2e' }}>
-            📁 文件中心
+            文件中心
           </Title>
           <Text type="secondary" style={{ fontSize: 14, marginTop: 4, display: 'block' }}>
-            上传和管理文件，支持 TXT / PDF / DOCX，单文件最大 20MB
+            管理用于解析、索引和单文件问答的知识文件。
           </Text>
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+            gap: 12,
+            marginBottom: 20,
+          }}
+        >
+          <MetricTile label="文件总数" value={totalFiles} tone="neutral" />
+          <MetricTile label="可问答文件" value={ragReadyFiles} tone="success" />
+          <MetricTile label="处理中" value={processingFiles} tone="warning" />
+          <MetricTile label="失败文件" value={failedFiles} tone="danger" />
         </div>
 
         {/* Upload Area */}
         <div
           style={{
             background: '#fff',
-            borderRadius: 12,
-            padding: 32,
+            borderRadius: 8,
+            padding: 24,
             marginBottom: 24,
-            border: '2px dashed #d9d9d9',
-            textAlign: 'center',
+            border: '1px solid #e6ebf2',
             cursor: uploading ? 'wait' : 'pointer',
-            transition: 'border-color 0.2s',
+            transition: 'border-color 0.2s, box-shadow 0.2s',
+            boxShadow: '0 8px 24px rgba(25, 35, 60, 0.04)',
           }}
           onDragOver={(e) => {
             e.currentTarget.style.borderColor = '#1677ff';
-            e.currentTarget.style.background = '#f0f5ff';
+            e.currentTarget.style.boxShadow = '0 10px 28px rgba(22, 119, 255, 0.10)';
           }}
           onDragLeave={(e) => {
-            e.currentTarget.style.borderColor = '#d9d9d9';
-            e.currentTarget.style.background = '#fff';
+            e.currentTarget.style.borderColor = '#e6ebf2';
+            e.currentTarget.style.boxShadow = '0 8px 24px rgba(25, 35, 60, 0.04)';
           }}
         >
           <Upload.Dragger
@@ -401,24 +473,74 @@ export default function FileCenter() {
             disabled={uploading}
             style={{ background: 'transparent', border: 'none' }}
           >
-            <UploadOutlined style={{ fontSize: 40, color: '#1677ff' }} />
-            <Title level={5} style={{ margin: '12px 0 4px' }}>
-              {uploading ? '上传中...' : '点击或拖拽文件到此处上传'}
-            </Title>
-            <Text type="secondary">支持 TXT、PDF、DOCX 格式，单文件最大 20MB</Text>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 24,
+                textAlign: 'left',
+              }}
+            >
+              <Space size={16}>
+                <div
+                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: 8,
+                    background: '#eef4ff',
+                    color: '#1677ff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 24,
+                  }}
+                >
+                  {uploading ? <LoadingOutlined /> : <InboxOutlined />}
+                </div>
+                <div>
+                  <Title level={5} style={{ margin: 0 }}>
+                    {uploading ? '正在上传文件' : '上传知识文件'}
+                  </Title>
+                  <Text type="secondary" style={{ display: 'block', marginTop: 4, fontSize: 13 }}>
+                    支持 TXT / PDF / DOCX，单文件最大 20MB。上传后可继续解析、切块、向量化并保存索引。
+                  </Text>
+                </div>
+              </Space>
+              <Button type="primary" icon={<UploadOutlined />} loading={uploading}>
+                选择文件
+              </Button>
+            </div>
           </Upload.Dragger>
         </div>
 
         {/* File List */}
         {files.length === 0 ? (
-          <Empty description="暂无文件" style={{ margin: '60px 0' }} />
+          <div
+            style={{
+              padding: '56px 24px',
+              background: '#fff',
+              border: '1px solid #edf1f7',
+              borderRadius: 8,
+              textAlign: 'center',
+            }}
+          >
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description={
+                <span>
+                  暂无文件。上传 TXT / PDF / DOCX 后，可以逐步完成解析、切块、向量化和问答准备。
+                </span>
+              }
+            />
+          </div>
         ) : (
           <Table
             dataSource={files}
             columns={columns}
             rowKey="id"
             pagination={false}
-            style={{ background: '#fff', borderRadius: 12 }}
+            style={{ background: '#fff', borderRadius: 8, overflow: 'hidden' }}
           />
         )}
 
@@ -436,7 +558,7 @@ export default function FileCenter() {
             <Space>
               <LoadingOutlined style={{ color: '#fa8c16' }} />
               <Text style={{ color: '#d46b08', fontSize: 13 }}>
-                当前支持文档解析、文本切块、mock 向量化、本地向量索引保存和单文件 RAG 问答。请先将文件处理到 indexed 状态后再提问。
+                当前支持文档解析、文本切块、向量化、本地索引保存和单文件问答。文件达到“可问答”状态后即可生成回答。
               </Text>
             </Space>
           </div>
@@ -452,7 +574,7 @@ export default function FileCenter() {
       >
         <Space direction="vertical" style={{ width: '100%' }} size={12}>
           <Text type="secondary">
-            已解析 {previewFile?.char_count ?? 0} 个字符。当前仅展示文本预览，不代表 RAG 索引已完成。
+            已解析 {previewFile?.char_count ?? 0} 个字符。完成索引后即可基于该文件问答。
           </Text>
           <Input.TextArea
             value={previewFile?.text_preview || ''}
@@ -471,7 +593,7 @@ export default function FileCenter() {
       >
         <Space direction="vertical" style={{ width: '100%' }} size={12}>
           <Text type="secondary">
-            已生成 {chunkPreviewFile?.chunk_count ?? 0} 个 chunk。当前仅展示前几个预览，不代表 Embedding 或 RAG 已完成。
+            已生成 {chunkPreviewFile?.chunk_count ?? 0} 个片段。当前仅展示前几个预览。
           </Text>
           {(chunkPreviewFile?.chunk_preview || []).map((chunk) => (
             <div
@@ -511,7 +633,7 @@ export default function FileCenter() {
         <Space direction="vertical" style={{ width: '100%' }} size={12}>
           <Text type="secondary">
             已生成 {embeddingPreviewFile?.embedding_count ?? 0} 个 embedding，
-            维度 {embeddingPreviewFile?.embedding_dimension ?? 0}。当前仅展示向量前几位，不代表向量存储或 RAG 已完成。
+            维度 {embeddingPreviewFile?.embedding_dimension ?? 0}。当前仅展示向量前几位。
           </Text>
           {(embeddingPreviewFile?.embedding_preview || []).map((embedding) => (
             <div
@@ -549,7 +671,7 @@ export default function FileCenter() {
       >
         <Space direction="vertical" style={{ width: '100%' }} size={12}>
           <Text type="secondary">
-            当前仅展示本地 VectorStore 检索结果，不调用 LLM，也不生成文件问答答案。
+            查看本地索引命中的相关片段，用于判断文件问答的依据质量。
           </Text>
           <Input.TextArea
             value={retrievalQuery}
@@ -614,7 +736,7 @@ export default function FileCenter() {
       >
         <Space direction="vertical" style={{ width: '100%' }} size={12}>
           <Text type="secondary">
-            当前使用本地 VectorStore 检索相关 chunks，并调用现有 LLM 生成单文件问答答案。
+            基于该文件的相关片段生成回答，并展示参考来源。
           </Text>
           <Input.TextArea
             value={qaQuery}
@@ -657,7 +779,7 @@ export default function FileCenter() {
               </div>
 
               <Text type="secondary">
-                引用 chunks: {qaResult.used_chunk_count} · Provider: {qaResult.provider}
+                参考片段：{qaResult.used_chunk_count} · Provider: {qaResult.provider}
               </Text>
               {qaResult.used_chunks.map((chunk, index) => (
                 <div
@@ -670,8 +792,8 @@ export default function FileCenter() {
                   }}
                 >
                   <Text strong style={{ fontSize: 13 }}>
-                    引用 {index + 1} · Chunk {chunk.chunk_index + 1} · score{' '}
-                    {chunk.score.toFixed(6)}
+                    参考片段 {index + 1} · Chunk {chunk.chunk_index + 1} · 相关度{' '}
+                    {chunk.score.toFixed(4)}
                   </Text>
                   <Input.TextArea
                     value={chunk.content}

@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
+DATABASE_PATH = BACKEND_DIR / os.getenv("DATABASE_PATH", "data/beichen.db")
 
 # Load local backend secrets before Settings is created.
 # Existing OS environment variables still take precedence over values in .env.
@@ -27,6 +28,10 @@ class Settings:
     openai_base_url: str = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
     embedding_api_key: str | None = os.getenv("EMBEDDING_API_KEY") or openai_api_key
     embedding_base_url: str = os.getenv("EMBEDDING_BASE_URL") or openai_base_url
+    database_path: Path = DATABASE_PATH
+    database_url: str = os.getenv(
+        "DATABASE_URL", f"sqlite:///{DATABASE_PATH.as_posix()}"
+    )
     upload_dir: Path = BACKEND_DIR / os.getenv("UPLOAD_DIR", "uploads")
     vector_store_dir: Path = BACKEND_DIR / os.getenv("VECTOR_STORE_DIR", "vector_store")
     max_upload_size_mb: int = int(os.getenv("MAX_UPLOAD_SIZE_MB", "20"))

@@ -1,11 +1,11 @@
-import { Typography, Button, Badge, Divider } from 'antd';
+import { Typography, Button, Divider, Space, Tag } from 'antd';
 import {
   MessageOutlined,
   FileTextOutlined,
   PlusOutlined,
-  ThunderboltOutlined,
   DeleteOutlined,
   LogoutOutlined,
+  CompassOutlined,
 } from '@ant-design/icons';
 import { useChatStore } from '../stores/chatStore';
 import { useAuthStore } from '../stores/authStore';
@@ -23,6 +23,26 @@ const navItems = [
   { key: 'chat' as NavView, icon: <MessageOutlined />, label: '对话', badge: 0 },
   { key: 'files' as NavView, icon: <FileTextOutlined />, label: '文件中心', badge: 0 },
 ];
+
+function getSessionTone(mode: 'general' | 'file') {
+  if (mode === 'file') {
+    return {
+      icon: <FileTextOutlined />,
+      label: '文件',
+      color: '#13c2c2',
+      background: 'rgba(19, 194, 194, 0.12)',
+      border: 'rgba(19, 194, 194, 0.32)',
+    };
+  }
+
+  return {
+    icon: <MessageOutlined />,
+    label: '对话',
+    color: '#7c8cff',
+    background: 'rgba(124, 140, 255, 0.12)',
+    border: 'rgba(124, 140, 255, 0.30)',
+  };
+}
 
 export default function Sidebar({ activeNav, onNavChange }: SidebarProps) {
   const { sessions, currentSessionId, selectSession, createSession, deleteSession } =
@@ -47,7 +67,8 @@ export default function Sidebar({ activeNav, onNavChange }: SidebarProps) {
         width: 300,
         minWidth: 300,
         height: '100vh',
-        background: '#1a1a2e',
+        background:
+          'linear-gradient(180deg, #15172a 0%, #191b30 54%, #111423 100%)',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
@@ -57,30 +78,57 @@ export default function Sidebar({ activeNav, onNavChange }: SidebarProps) {
       {/* Logo Area */}
       <div
         style={{
-          padding: '20px 16px 16px',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          padding: '22px 16px 18px',
+          borderBottom: '1px solid rgba(255,255,255,0.08)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div
             style={{
-              width: 36,
-              height: 36,
-              borderRadius: 10,
-              background: 'linear-gradient(135deg, #1677ff, #0958d9)',
+              width: 46,
+              height: 46,
+              borderRadius: 14,
+              background:
+                'linear-gradient(135deg, #5b8cff 0%, #1677ff 48%, #13c2c2 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              boxShadow: '0 12px 24px rgba(22, 119, 255, 0.28)',
+              position: 'relative',
             }}
           >
-            <ThunderboltOutlined style={{ color: '#fff', fontSize: 20 }} />
+            <CompassOutlined style={{ color: '#fff', fontSize: 24 }} />
+            <span
+              style={{
+                position: 'absolute',
+                right: -3,
+                bottom: -3,
+                width: 14,
+                height: 14,
+                borderRadius: 5,
+                background: '#21d6a2',
+                border: '2px solid #15172a',
+              }}
+            />
           </div>
           <div>
-            <Text strong style={{ color: '#fff', fontSize: 17, display: 'block' }}>
-              北辰agent
-            </Text>
-            <Text style={{ color: 'rgba(255,255,255,0.35)', fontSize: 11 }}>
-              AI 文档助手
+            <Space size={6} align="center">
+              <Text strong style={{ color: '#fff', fontSize: 19, display: 'block' }}>
+                北辰
+              </Text>
+              <Text
+                style={{
+                  color: '#9db7ff',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  letterSpacing: 0,
+                }}
+              >
+                agent
+              </Text>
+            </Space>
+            <Text style={{ color: 'rgba(255,255,255,0.46)', fontSize: 12, display: 'block' }}>
+              面向知识文件的 AI 工作台
             </Text>
           </div>
         </div>
@@ -102,8 +150,12 @@ export default function Sidebar({ activeNav, onNavChange }: SidebarProps) {
               cursor: 'pointer',
               background:
                 activeNav === item.key
-                  ? 'rgba(22,119,255,0.2)'
+                  ? 'rgba(91,140,255,0.18)'
                   : 'transparent',
+              border:
+                activeNav === item.key
+                  ? '1px solid rgba(124, 140, 255, 0.22)'
+                  : '1px solid transparent',
               transition: 'all 0.15s',
             }}
             onMouseEnter={(e) => {
@@ -120,7 +172,7 @@ export default function Sidebar({ activeNav, onNavChange }: SidebarProps) {
           >
             <span
               style={{
-                color: activeNav === item.key ? '#1677ff' : 'rgba(255,255,255,0.65)',
+                color: activeNav === item.key ? '#8fb1ff' : 'rgba(255,255,255,0.58)',
                 fontSize: 18,
                 display: 'flex',
               }}
@@ -178,64 +230,97 @@ export default function Sidebar({ activeNav, onNavChange }: SidebarProps) {
           最近对话
         </Text>
 
-        {sessions.map((session) => (
-          <div
-            key={session.id}
-            onClick={() => handleSessionClick(session.id)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: '10px 10px',
-              marginBottom: 2,
-              borderRadius: 8,
-              cursor: 'pointer',
-              background:
-                currentSessionId === session.id && activeNav === 'chat'
-                  ? 'rgba(22,119,255,0.2)'
-                  : 'transparent',
-              transition: 'all 0.15s',
-            }}
-            onMouseEnter={(e) => {
-              if (!(currentSessionId === session.id && activeNav === 'chat')) {
-                (e.currentTarget as HTMLElement).style.background =
-                  'rgba(255,255,255,0.06)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!(currentSessionId === session.id && activeNav === 'chat')) {
-                (e.currentTarget as HTMLElement).style.background = 'transparent';
-              }
-            }}
-          >
-            <span style={{ fontSize: 16, flexShrink: 0 }}>
-              {session.mode === 'file' ? '📄' : '💬'}
-            </span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <Text
+        {sessions.map((session) => {
+          const tone = getSessionTone(session.mode);
+          const active = currentSessionId === session.id && activeNav === 'chat';
+
+          return (
+            <div
+              key={session.id}
+              onClick={() => handleSessionClick(session.id)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                padding: '10px 10px',
+                marginBottom: 6,
+                borderRadius: 8,
+                cursor: 'pointer',
+                background: active ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.025)',
+                border: active ? `1px solid ${tone.border}` : '1px solid rgba(255,255,255,0.04)',
+                borderLeft: `3px solid ${active ? tone.color : 'rgba(255,255,255,0.12)'}`,
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={(e) => {
+                if (!active) {
+                  (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)';
+                  (e.currentTarget as HTMLElement).style.borderLeftColor = tone.color;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!active) {
+                  (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.025)';
+                  (e.currentTarget as HTMLElement).style.borderLeftColor =
+                    'rgba(255,255,255,0.12)';
+                }
+              }}
+            >
+              <span
                 style={{
-                  color: '#fff',
-                  fontSize: 13,
-                  display: 'block',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
+                  width: 28,
+                  height: 28,
+                  borderRadius: 8,
+                  flexShrink: 0,
+                  color: tone.color,
+                  background: tone.background,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 14,
                 }}
               >
-                {session.title}
-              </Text>
+                {tone.icon}
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <Text
+                  style={{
+                    color: active ? '#fff' : 'rgba(255,255,255,0.82)',
+                    fontSize: 13,
+                    fontWeight: active ? 600 : 500,
+                    display: 'block',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {session.title}
+                </Text>
+                <Tag
+                  bordered={false}
+                  color={session.mode === 'file' ? 'cyan' : 'geekblue'}
+                  style={{
+                    marginTop: 5,
+                    marginInlineEnd: 0,
+                    fontSize: 10,
+                    lineHeight: '16px',
+                    borderRadius: 4,
+                  }}
+                >
+                  {tone.label}
+                </Tag>
+              </div>
+              {active && (
+                <DeleteOutlined
+                  style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12 }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteSession(session.id);
+                  }}
+                />
+              )}
             </div>
-            {currentSessionId === session.id && activeNav === 'chat' && (
-              <DeleteOutlined
-                style={{ color: 'rgba(255,255,255,0.25)', fontSize: 12 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deleteSession(session.id);
-                }}
-              />
-            )}
-          </div>
-        ))}
+          );
+        })}
 
         {sessions.length === 0 && (
           <Text

@@ -14,6 +14,17 @@ interface ApiResponse<T> {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
+export async function listFiles(): Promise<FileItem[]> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/files`);
+  const payload = (await response.json()) as ApiResponse<{ files: FileItem[] }>;
+
+  if (!response.ok || payload.code !== 0 || !payload.data) {
+    throw new Error(payload.message || '文件列表读取失败');
+  }
+
+  return payload.data.files;
+}
+
 export async function uploadFile(file: File): Promise<FileItem> {
   const formData = new FormData();
   formData.append('file', file);

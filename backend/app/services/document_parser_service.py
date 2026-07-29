@@ -2,6 +2,8 @@ from pathlib import Path
 
 from app.core.config import settings
 from app.core.errors import DocumentNotFoundError, DocumentParseError
+from app.db.database import SessionLocal
+from app.repositories.file_repository import FileRepository
 from app.schemas.file import ParsedFileResponse
 
 
@@ -10,36 +12,52 @@ class DocumentParserService:
     preview_limit = 800
 
     def parse(self, file_id: str, extension: str) -> ParsedFileResponse:
-        normalized_extension = extension.lower().lstrip(".")
-        normalized_text = self.parse_text(file_id, normalized_extension)
+        try:
+            normalized_extension = extension.lower().lstrip(".")
+            normalized_text = self.parse_text(file_id, normalized_extension)
+            text_preview = self._build_preview(normalized_text)
 
-        return ParsedFileResponse(
-            file_id=file_id,
-            status="parsed",
-            extension=normalized_extension,
-            text_preview=self._build_preview(normalized_text),
-            char_count=len(normalized_text),
-        )
+            with SessionLocal() as db:
+                FileRepository(db).update_parsed(
+                    file_id,
+                    text_preview=text_preview,
+                    char_count=len(normalized_text),
+                )
+
+            return ParsedFileResponse(
+                file_id=file_id,
+                status="parsed",
+                extension=normalized_extension,
+                text_preview=text_preview,
+                char_count=len(normalized_text),
+            )
+        except Exception as exc:
+            self._mark_failed(file_id, str(exc))
+            raise
 
     def parse_text(self, file_id: str, extension: str) -> str:
-        normalized_extension = extension.lower().lstrip(".")
-        if normalized_extension not in self.supported_extensions:
-            raise DocumentParseError(
-                f"Unsupported parse file type. Allowed: {', '.join(sorted(self.supported_extensions))}"
-            )
+        try:
+            normalized_extension = extension.lower().lstrip(".")
+            if normalized_extension not in self.supported_extensions:
+                raise DocumentParseError(
+                    f"Unsupported parse file type. Allowed: {', '.join(sorted(self.supported_extensions))}"
+                )
 
-        file_path = settings.upload_dir / f"{file_id}.{normalized_extension}"
-        if not file_path.exists() or not file_path.is_file():
-            raise DocumentNotFoundError()
+            file_path = settings.upload_dir / f"{file_id}.{normalized_extension}"
+            if not file_path.exists() or not file_path.is_file():
+                raise DocumentNotFoundError()
 
-        text = self._parse_by_extension(file_path, normalized_extension)
-        normalized_text = self._normalize_text(text)
-        if not normalized_text:
-            raise DocumentParseError(
-                "No text content extracted. Scanned PDFs and image-only documents are not supported in v0.4"
-            )
+            text = self._parse_by_extension(file_path, normalized_extension)
+            normalized_text = self._normalize_text(text)
+            if not normalized_text:
+                raise DocumentParseError(
+                    "No text content extracted. Scanned PDFs and image-only documents are not supported in v0.4"
+                )
 
-        return normalized_text
+            return normalized_text
+        except Exception as exc:
+            self._mark_failed(file_id, str(exc))
+            raise
 
     def _parse_by_extension(self, file_path: Path, extension: str) -> str:
         if extension == "txt":
@@ -130,3 +148,10 @@ class DocumentParserService:
         if len(text) <= self.preview_limit:
             return text
         return f"{text[:self.preview_limit]}..."
+
+    def _mark_failed(self, file_id: str, error_message: str) -> None:
+        try:
+            with SessionLocal() as db:
+                FileRepository(db).touch_failed(file_id, error_message)
+        except Exception:
+            pass

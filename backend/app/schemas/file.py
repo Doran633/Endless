@@ -10,6 +10,28 @@ class UploadedFileResponse(BaseModel):
     created_at: str
 
 
+class FileRecordResponse(BaseModel):
+    id: str
+    original_name: str
+    status: str
+    size_bytes: int
+    extension: str
+    created_at: str
+    updated_at: str
+    text_preview: str | None = None
+    char_count: int | None = None
+    chunk_count: int | None = None
+    embedding_count: int | None = None
+    embedding_dimension: int | None = None
+    embedding_model: str | None = None
+    vector_store_path: str | None = None
+    error_message: str | None = None
+
+
+class FileListResponse(BaseModel):
+    files: list[FileRecordResponse]
+
+
 class ParseFileRequest(BaseModel):
     extension: str
 

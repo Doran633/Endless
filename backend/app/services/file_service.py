@@ -1,12 +1,15 @@
-from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
 from fastapi import UploadFile
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.config import settings
 from app.core.errors import FileStorageError, FileValidationError
-from app.schemas.file import UploadedFileResponse
+from app.db.database import SessionLocal
+from app.db.models import FileRecord
+from app.repositories.file_repository import FileRepository
+from app.schemas.file import FileListResponse, FileRecordResponse, UploadedFileResponse
 
 
 class FileService:
@@ -23,14 +26,31 @@ class FileService:
         settings.upload_dir.mkdir(parents=True, exist_ok=True)
 
         size_bytes = await self._save_file(file, storage_path)
-        return UploadedFileResponse(
-            id=file_id,
-            original_name=original_name,
-            status="uploaded",
-            size_bytes=size_bytes,
-            extension=extension,
-            created_at=datetime.now(timezone.utc).isoformat(),
-        )
+        try:
+            with SessionLocal() as db:
+                record = FileRepository(db).create_uploaded_file(
+                    file_id=file_id,
+                    original_name=original_name,
+                    extension=extension,
+                    size_bytes=size_bytes,
+                    storage_path=storage_path,
+                )
+                return UploadedFileResponse(
+                    id=record.id,
+                    original_name=record.original_name,
+                    status=record.status,
+                    size_bytes=record.size_bytes,
+                    extension=record.extension,
+                    created_at=record.created_at.isoformat(),
+                )
+        except SQLAlchemyError as exc:
+            storage_path.unlink(missing_ok=True)
+            raise FileStorageError("Failed to save file metadata") from exc
+
+    def list_files(self) -> FileListResponse:
+        with SessionLocal() as db:
+            records = FileRepository(db).list_files()
+            return FileListResponse(files=[self._to_file_response(record) for record in records])
 
     def _get_extension(self, filename: str) -> str:
         extension = Path(filename).suffix.lower().lstrip(".")
@@ -67,3 +87,22 @@ class FileService:
             await file.close()
 
         return size
+
+    def _to_file_response(self, record: FileRecord) -> FileRecordResponse:
+        return FileRecordResponse(
+            id=record.id,
+            original_name=record.original_name,
+            status=record.status,
+            size_bytes=record.size_bytes,
+            extension=record.extension,
+            created_at=record.created_at.isoformat(),
+            updated_at=record.updated_at.isoformat(),
+            text_preview=record.text_preview,
+            char_count=record.char_count,
+            chunk_count=record.chunk_count,
+            embedding_count=record.embedding_count,
+            embedding_dimension=record.embedding_dimension,
+            embedding_model=record.embedding_model,
+            vector_store_path=record.vector_store_path,
+            error_message=record.error_message,
+        )
