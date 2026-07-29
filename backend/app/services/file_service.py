@@ -5,11 +5,21 @@ from fastapi import UploadFile
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.config import settings
-from app.core.errors import FileStorageError, FileValidationError
+from app.core.errors import (
+    FileDeleteError,
+    FileRecordNotFoundError,
+    FileStorageError,
+    FileValidationError,
+)
 from app.db.database import SessionLocal
 from app.db.models import FileRecord
 from app.repositories.file_repository import FileRepository
-from app.schemas.file import FileListResponse, FileRecordResponse, UploadedFileResponse
+from app.schemas.file import (
+    DeleteFileResponse,
+    FileListResponse,
+    FileRecordResponse,
+    UploadedFileResponse,
+)
 
 
 class FileService:
@@ -52,6 +62,34 @@ class FileService:
             records = FileRepository(db).list_files()
             return FileListResponse(files=[self._to_file_response(record) for record in records])
 
+    def delete_file(self, file_id: str) -> DeleteFileResponse:
+        with SessionLocal() as db:
+            repository = FileRepository(db)
+            record = repository.get_file(file_id)
+            if record is None:
+                raise FileRecordNotFoundError()
+
+            original_path = settings.upload_dir / f"{record.id}.{record.extension}"
+            vector_index_path = settings.vector_store_dir / f"{record.id}.json"
+
+            try:
+                original_deleted = self._delete_path(original_path)
+                vector_index_deleted = self._delete_path(vector_index_path)
+                if not repository.delete_file(file_id):
+                    raise FileRecordNotFoundError()
+            except FileRecordNotFoundError:
+                raise
+            except (OSError, SQLAlchemyError) as exc:
+                db.rollback()
+                raise FileDeleteError() from exc
+
+        return DeleteFileResponse(
+            file_id=file_id,
+            deleted=True,
+            original_deleted=original_deleted,
+            vector_index_deleted=vector_index_deleted,
+        )
+
     def _get_extension(self, filename: str) -> str:
         extension = Path(filename).suffix.lower().lstrip(".")
         if not extension:
@@ -87,6 +125,14 @@ class FileService:
             await file.close()
 
         return size
+
+    def _delete_path(self, path: Path) -> bool:
+        if not path.exists():
+            return False
+        if not path.is_file():
+            raise FileDeleteError("File storage target is not a regular file")
+        path.unlink()
+        return True
 
     def _to_file_response(self, record: FileRecord) -> FileRecordResponse:
         return FileRecordResponse(

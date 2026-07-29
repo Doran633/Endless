@@ -43,6 +43,26 @@ export async function uploadFile(file: File): Promise<FileItem> {
   return payload.data;
 }
 
+export interface DeleteFileResponse {
+  file_id: string;
+  deleted: boolean;
+  original_deleted: boolean;
+  vector_index_deleted: boolean;
+}
+
+export async function deleteFile(fileId: string): Promise<DeleteFileResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/v1/files/${fileId}`, {
+    method: 'DELETE',
+  });
+  const payload = (await response.json()) as ApiResponse<DeleteFileResponse>;
+
+  if (!response.ok || payload.code !== 0 || !payload.data) {
+    throw new Error(payload.message || '文件删除失败');
+  }
+
+  return payload.data;
+}
+
 export interface ParsedFileResponse {
   file_id: string;
   status: 'parsed';

@@ -34,6 +34,12 @@ async def list_files() -> dict[str, object]:
     return ok(result.model_dump())
 
 
+@router.delete("/files/{file_id}")
+async def delete_file(file_id: str) -> dict[str, object]:
+    result = FileService().delete_file(file_id)
+    return ok(result.model_dump())
+
+
 @router.post("/files/{file_id}/parse")
 async def parse_file(file_id: str, request: ParseFileRequest) -> dict[str, object]:
     result = DocumentParserService().parse(file_id, request.extension)

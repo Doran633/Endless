@@ -37,6 +37,17 @@ class FileRepository:
         statement = select(FileRecord).order_by(FileRecord.created_at.desc())
         return list(self.db.scalars(statement).all())
 
+    def get_file(self, file_id: str) -> FileRecord | None:
+        return self.db.get(FileRecord, file_id)
+
+    def delete_file(self, file_id: str) -> bool:
+        record = self.get_file(file_id)
+        if record is None:
+            return False
+        self.db.delete(record)
+        self.db.commit()
+        return True
+
     def update_parsed(self, file_id: str, *, text_preview: str, char_count: int) -> None:
         record = self.db.get(FileRecord, file_id)
         if record is None:

@@ -6,6 +6,7 @@ import { parseFile as parseFileApi } from '../api/fileApi';
 import { chunkFile as chunkFileApi } from '../api/fileApi';
 import { embedFile as embedFileApi } from '../api/fileApi';
 import { storeFileVectors as storeFileVectorsApi } from '../api/fileApi';
+import { deleteFile as deleteFileApi } from '../api/fileApi';
 
 interface FileState {
   files: FileItem[];
@@ -22,7 +23,7 @@ interface FileState {
   embedFile: (id: string) => Promise<void>;
   storeVectors: (id: string) => Promise<void>;
   clearActiveRagFile: () => void;
-  removeFile: (id: string) => void;
+  deleteFile: (id: string) => Promise<void>;
   getFileById: (id: string) => FileItem | undefined;
 }
 
@@ -365,11 +366,14 @@ export const useFileStore = create<FileState>((set, get) => ({
     });
   },
 
-  removeFile: (id: string) => {
+  deleteFile: async (id: string) => {
+    await deleteFileApi(id);
     set((state) => ({
       files: state.files.filter((f) => f.id !== id),
       activeRagFileId: state.activeRagFileId === id ? undefined : state.activeRagFileId,
       activeRagFileName: state.activeRagFileId === id ? undefined : state.activeRagFileName,
+      ingestion:
+        state.activeRagFileId === id ? { status: 'idle' } : state.ingestion,
     }));
   },
 

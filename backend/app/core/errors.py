@@ -28,6 +28,16 @@ class FileStorageError(AppError):
         super().__init__(message=message, code=42002, status_code=500)
 
 
+class FileRecordNotFoundError(AppError):
+    def __init__(self, message: str = "File record not found") -> None:
+        super().__init__(message=message, code=42003, status_code=404)
+
+
+class FileDeleteError(AppError):
+    def __init__(self, message: str = "Failed to delete file") -> None:
+        super().__init__(message=message, code=42004, status_code=500)
+
+
 class DocumentNotFoundError(AppError):
     def __init__(self, message: str = "Uploaded file not found") -> None:
         super().__init__(message=message, code=44001, status_code=404)

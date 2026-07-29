@@ -30,10 +30,22 @@ import {
   InboxOutlined,
 } from '@ant-design/icons';
 import { useFileStore } from '../stores/fileStore';
+import { useChatStore } from '../stores/chatStore';
 import { askFile, retrieveFileChunks } from '../api/fileApi';
 import type { AskFileResponse, FileItem, RetrieveFileResponse } from '../types';
 
 const { Title, Text } = Typography;
+
+const ingestionText = {
+  idle: '',
+  uploading: '正在上传文件',
+  parsing: '正在解析文档',
+  chunking: '正在切分文本',
+  embedding: '正在生成向量',
+  indexing: '正在保存索引',
+  completed: '文件已完成处理，可以开始问答',
+  failed: '自动处理失败，可使用列表中的手动操作重试',
+};
 
 const statusMap: Record<FileItem['status'], { color: string; text: string; help: string }> = {
   uploaded: { color: 'default', text: '待解析', help: '文件已保存，等待解析' },
@@ -101,9 +113,20 @@ function MetricTile({
 }
 
 export default function FileCenter() {
-  const { files, loadFiles, uploadFile, parseFile, chunkFile, embedFile, storeVectors, removeFile } =
+  const {
+    files,
+    loadFiles,
+    ingestFile,
+    parseFile,
+    chunkFile,
+    embedFile,
+    storeVectors,
+    deleteFile,
+    uploading,
+    ingestion,
+  } =
     useFileStore();
-  const [uploading, setUploading] = useState(false);
+  const { currentSessionId, sessionRagFiles, clearCurrentSessionRagFile } = useChatStore();
   const [previewFile, setPreviewFile] = useState<FileItem | null>(null);
   const [chunkPreviewFile, setChunkPreviewFile] = useState<FileItem | null>(null);
   const [embeddingPreviewFile, setEmbeddingPreviewFile] = useState<FileItem | null>(null);
@@ -131,17 +154,38 @@ export default function FileCenter() {
   }, [loadFiles]);
 
   const handleUpload = async (file: File) => {
-    setUploading(true);
     try {
-      await uploadFile(file);
-      message.success(`"${file.name}" 上传成功`);
+      await ingestFile(file);
+      message.success(`"${file.name}" 已完成处理，可以开始问答`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '上传失败';
+      const errorMessage = error instanceof Error ? error.message : '文件自动处理失败';
       message.error(errorMessage);
-    } finally {
-      setUploading(false);
     }
     return false;
+  };
+
+  const handleDelete = (file: FileItem) => {
+    Modal.confirm({
+      title: '删除文件？',
+      content: `将同时删除“${file.original_name}”的原始文件、本地索引和数据库记录，此操作无法撤销。`,
+      okText: '删除',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      async onOk() {
+        try {
+          await deleteFile(file.id);
+          const currentRagFile = currentSessionId ? sessionRagFiles[currentSessionId] : undefined;
+          if (currentRagFile?.fileId === file.id) {
+            clearCurrentSessionRagFile();
+          }
+          message.success(`"${file.original_name}" 已删除`);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : '文件删除失败';
+          message.error(errorMessage);
+          throw error;
+        }
+      },
+    });
   };
 
   const handleStartQa = (file: FileItem) => {
@@ -401,7 +445,7 @@ export default function FileCenter() {
               type="link"
               danger
               icon={<DeleteOutlined />}
-              onClick={() => removeFile(record.id)}
+              onClick={() => handleDelete(record)}
             >
               删除
             </Button>
@@ -500,10 +544,10 @@ export default function FileCenter() {
                 </div>
                 <div>
                   <Title level={5} style={{ margin: 0 }}>
-                    {uploading ? '正在上传文件' : '上传知识文件'}
+                    {uploading ? '正在自动处理文件' : '上传知识文件'}
                   </Title>
                   <Text type="secondary" style={{ display: 'block', marginTop: 4, fontSize: 13 }}>
-                    支持 TXT / PDF / DOCX，单文件最大 20MB。上传后可继续解析、切块、向量化并保存索引。
+                    支持 TXT / PDF / DOCX，单文件最大 20MB。上传后将自动解析、切块、向量化并保存索引。
                   </Text>
                 </div>
               </Space>
@@ -513,6 +557,32 @@ export default function FileCenter() {
             </div>
           </Upload.Dragger>
         </div>
+
+        {ingestion.status !== 'idle' && (
+          <div
+            style={{
+              marginTop: -12,
+              marginBottom: 24,
+              padding: '10px 14px',
+              borderRadius: 8,
+              border: ingestion.status === 'failed' ? '1px solid #ffccc7' : '1px solid #d6e4ff',
+              background: ingestion.status === 'failed' ? '#fff2f0' : '#f0f5ff',
+            }}
+          >
+            <Space>
+              {uploading ? (
+                <LoadingOutlined style={{ color: '#1677ff' }} />
+              ) : ingestion.status === 'failed' ? (
+                <CloseCircleOutlined style={{ color: '#cf1322' }} />
+              ) : (
+                <CheckCircleOutlined style={{ color: '#389e0d' }} />
+              )}
+              <Text>{ingestionText[ingestion.status]}</Text>
+              {ingestion.fileName && <Text type="secondary">{ingestion.fileName}</Text>}
+              {ingestion.errorMessage && <Text type="danger">{ingestion.errorMessage}</Text>}
+            </Space>
+          </div>
+        )}
 
         {/* File List */}
         {files.length === 0 ? (

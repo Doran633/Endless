@@ -32,6 +32,13 @@ class FileListResponse(BaseModel):
     files: list[FileRecordResponse]
 
 
+class DeleteFileResponse(BaseModel):
+    file_id: str
+    deleted: bool
+    original_deleted: bool
+    vector_index_deleted: bool
+
+
 class ParseFileRequest(BaseModel):
     extension: str
 
