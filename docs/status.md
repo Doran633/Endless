@@ -4,9 +4,9 @@
 
 ## 1. 当前版本
 
-当前版本：`v1.1.4`
+当前版本：`v1.2.3`
 
-当前阶段：File Lifecycle 文件生命周期闭环阶段。
+当前阶段：Persistent Conversations 普通聊天与 RAG 消息持久化阶段。
 
 当前状态判断：
 
@@ -42,6 +42,17 @@
 - 已完成文件中心自动处理：上传后自动执行解析、切块、embedding 和本地索引保存，并展示当前处理阶段。
 - 已新增 `DELETE /api/v1/files/{file_id}`：删除对应原始文件、本地 JSON 索引和 SQLite 文件记录。
 - 已完成前端真实删除闭环：删除前确认，成功后同步文件列表；删除当前会话绑定文件时会解除 RAG 绑定。
+- 已新增 `chat_sessions` 表，用于保存聊天会话基础信息和当前会话绑定文件字段。
+- 已新增 `chat_messages` 表，用于保存会话消息正文和 RAG 引用等消息 metadata。
+- 已新增 `ChatRepository`，支持创建会话、查询会话列表、查询单个会话、删除会话、创建消息和查询会话消息。
+- 已完成删除会话时同步删除其消息的 Repository 层基础能力。
+- 已新增 `ConversationService`，用于编排会话创建、列表查询、消息查询、会话删除和文件绑定校验。
+- 已新增会话 API：`GET /api/v1/chat/sessions`、`POST /api/v1/chat/sessions`、`DELETE /api/v1/chat/sessions/{session_id}`、`GET /api/v1/chat/sessions/{session_id}/messages`、`PATCH /api/v1/chat/sessions/{session_id}/file`。
+- 已支持会话绑定或解除单个文件，绑定时会校验文件存在且状态为 `indexed`。
+- 已支持删除文件时清除数据库中绑定该文件的会话字段。
+- 已支持 `POST /api/v1/chat` 携带可选 `session_id` 时，将普通聊天的 user 和 assistant 消息写入 `chat_messages`。
+- 已支持 `POST /api/v1/files/{file_id}/ask` 携带可选 `session_id` 时，将 RAG 问答的 user 和 assistant 消息写入 `chat_messages`。
+- 已支持在 RAG assistant 消息 `metadata_json` 中保存 `rag_file_id`、`rag_file_name`、`used_chunks` 和 `token_count`。
 
 ## 2. 当前 v1.0 目标
 
@@ -304,20 +315,20 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 
 当前正在推进的模块：
 
-- v1.1 产品体验与数据库持久化收尾。
-- 聊天会话、聊天消息和当前文件绑定的持久化规划。
+- v1.2 Persistent Conversations 持久会话。
+- 前端刷新恢复、会话切换和当前会话文件绑定恢复。
 
 下一步最适合推进：
 
-- 继续推进聊天会话和消息持久化。
-- 恢复刷新前的当前会话与 RAG 文件绑定。
+- 前端接入会话 API。
+- 刷新后恢复当前会话、历史消息与 RAG 文件绑定。
 
 ## 5. 未开始模块
 
 当前尚未开始实现：
 
-- 聊天会话持久化。
-- 聊天消息持久化。
+- 前端刷新后恢复会话和消息。
+- 当前会话绑定文件的前端恢复接入。
 - 数据库迁移。
 - 全局异常处理。
 - 请求日志和 request id。
@@ -395,7 +406,8 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 当前最大缺口是：
 
 - RAG 当前仅支持最近一个 indexed 文件的单文件问答。
-- 文件生命周期已经闭环，但聊天会话、消息和当前文件绑定仍未持久化。
+- 文件生命周期已经闭环，聊天会话和消息表已创建，Repository 层基础读写能力已完成。
+- 聊天会话 API 和普通聊天/RAG 消息落库已完成，前端刷新恢复和当前文件绑定前端接入尚未完成。
 - AI 数据分析仍只是规划能力，尚未进入实现。
 
-因此，下一阶段应继续推进 v1.1 数据库持久化：补齐聊天会话、消息和当前文件绑定恢复。AI 数据分析继续保留规划边界，不挤占当前主链路。
+因此，下一阶段应继续推进 v1.2 持久会话：前端接入会话 API，恢复刷新前的会话列表、历史消息和当前 RAG 文件绑定。AI 数据分析继续保留规划边界，不挤占当前主链路。

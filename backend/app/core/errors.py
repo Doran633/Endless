@@ -81,3 +81,18 @@ class RetrievalError(AppError):
 class RagError(AppError):
     def __init__(self, message: str = "RAG question answering failed") -> None:
         super().__init__(message=message, code=49001, status_code=400)
+
+
+class ChatSessionNotFoundError(AppError):
+    def __init__(self, message: str = "Chat session not found") -> None:
+        super().__init__(message=message, code=50001, status_code=404)
+
+
+class ChatSessionStorageError(AppError):
+    def __init__(self, message: str = "Chat session storage failed") -> None:
+        super().__init__(message=message, code=50002, status_code=500)
+
+
+class ChatFileBindingError(AppError):
+    def __init__(self, message: str = "Chat file binding failed") -> None:
+        super().__init__(message=message, code=50003, status_code=400)

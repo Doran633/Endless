@@ -11,6 +11,7 @@ from app.schemas.file import (
     StoreVectorRequest,
 )
 from app.services.chunk_service import ChunkService
+from app.services.conversation_service import ConversationService
 from app.services.document_parser_service import DocumentParserService
 from app.services.embedding_service import EmbeddingService
 from app.services.file_service import FileService
@@ -90,5 +91,13 @@ async def retrieve_file_chunks(file_id: str, request: RetrieveFileRequest) -> di
 
 @router.post("/files/{file_id}/ask")
 async def ask_file(file_id: str, request: AskFileRequest) -> dict[str, object]:
-    result = RagService().ask_file(file_id, request.query, request.top_k)
+    if request.session_id:
+        result = ConversationService().ask_file_and_persist(
+            session_id=request.session_id,
+            file_id=file_id,
+            query=request.query,
+            top_k=request.top_k,
+        )
+    else:
+        result = RagService().ask_file(file_id, request.query, request.top_k)
     return ok(result.model_dump())

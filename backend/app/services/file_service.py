@@ -20,6 +20,7 @@ from app.schemas.file import (
     FileRecordResponse,
     UploadedFileResponse,
 )
+from app.services.conversation_service import ConversationService
 
 
 class FileService:
@@ -77,6 +78,7 @@ class FileService:
                 vector_index_deleted = self._delete_path(vector_index_path)
                 if not repository.delete_file(file_id):
                     raise FileRecordNotFoundError()
+                ConversationService().clear_file_binding_for_deleted_file(file_id)
             except FileRecordNotFoundError:
                 raise
             except (OSError, SQLAlchemyError) as exc:
