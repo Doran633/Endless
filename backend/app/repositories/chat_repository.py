@@ -115,6 +115,16 @@ class ChatRepository:
         )
         return list(self.db.scalars(statement).all())
 
+    def list_recent_messages(self, session_id: str, limit: int) -> list[ChatMessageRecord]:
+        statement = (
+            select(ChatMessageRecord)
+            .where(ChatMessageRecord.session_id == session_id)
+            .order_by(ChatMessageRecord.created_at.desc())
+            .limit(limit)
+        )
+        records = list(self.db.scalars(statement).all())
+        return list(reversed(records))
+
     def _touch_session(self, session_id: str) -> None:
         session = self.get_session(session_id)
         if session is not None:

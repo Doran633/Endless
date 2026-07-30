@@ -10,6 +10,7 @@ from app.core.errors import (
 )
 from app.db.database import SessionLocal
 from app.db.models import ChatMessageRecord, ChatSessionRecord
+from app.llm.base import ChatMessage
 from app.repositories.chat_repository import ChatRepository
 from app.repositories.file_repository import FileRepository
 from app.schemas.chat import (
@@ -27,11 +28,14 @@ from app.services.rag_service import RagService
 class ConversationService:
     DEFAULT_SESSION_TITLE = "新对话"
     MAX_AUTO_TITLE_LENGTH = 24
+    DEFAULT_CONTEXT_MESSAGE_LIMIT = 6
+    MAX_CONTEXT_MESSAGE_CHARS = 1200
 
     def answer_and_persist_chat(self, session_id: str, message: str) -> dict[str, object]:
         self._ensure_session_exists(session_id)
 
-        result = ChatService().answer(message)
+        context_messages = self._build_chat_context_messages(session_id, message)
+        result = ChatService().answer_with_context(context_messages)
         self._save_message(session_id=session_id, role="user", content=message)
         self._save_message(
             session_id=session_id,
@@ -193,6 +197,40 @@ class ConversationService:
             raise
         except SQLAlchemyError as exc:
             raise ChatSessionStorageError("Failed to load chat session") from exc
+
+    def _build_chat_context_messages(self, session_id: str, current_message: str) -> list[ChatMessage]:
+        try:
+            with SessionLocal() as db:
+                repository = ChatRepository(db)
+                if repository.get_session(session_id) is None:
+                    raise ChatSessionNotFoundError()
+                records = repository.list_recent_messages(
+                    session_id, self.DEFAULT_CONTEXT_MESSAGE_LIMIT
+                )
+        except ChatSessionNotFoundError:
+            raise
+        except SQLAlchemyError as exc:
+            raise ChatSessionStorageError("Failed to load chat context") from exc
+
+        messages = [
+            self._to_context_message(record)
+            for record in records
+            if record.role in {"user", "assistant"} and record.content.strip()
+        ]
+        messages.append(ChatMessage(role="user", content=current_message))
+        return messages
+
+    def _to_context_message(self, record: ChatMessageRecord) -> ChatMessage:
+        return ChatMessage(
+            role=record.role,
+            content=self._truncate_context_content(record.content),
+        )
+
+    def _truncate_context_content(self, content: str) -> str:
+        normalized = content.strip()
+        if len(normalized) <= self.MAX_CONTEXT_MESSAGE_CHARS:
+            return normalized
+        return f"{normalized[: self.MAX_CONTEXT_MESSAGE_CHARS]}..."
 
     def _save_message(
         self,
