@@ -58,8 +58,14 @@ class ConversationService:
     ) -> AskFileResponse:
         self._ensure_session_exists(session_id)
         rag_file_name = self._get_file_name(file_id)
+        conversation_context = self._build_recent_context_messages(session_id)
 
-        result = RagService().ask_file(file_id, query, top_k)
+        result = RagService().ask_file(
+            file_id,
+            query,
+            top_k,
+            conversation_context=conversation_context,
+        )
         self._save_message(session_id=session_id, role="user", content=result.query)
         self._save_message(
             session_id=session_id,
@@ -199,6 +205,11 @@ class ConversationService:
             raise ChatSessionStorageError("Failed to load chat session") from exc
 
     def _build_chat_context_messages(self, session_id: str, current_message: str) -> list[ChatMessage]:
+        messages = self._build_recent_context_messages(session_id)
+        messages.append(ChatMessage(role="user", content=current_message))
+        return messages
+
+    def _build_recent_context_messages(self, session_id: str) -> list[ChatMessage]:
         try:
             with SessionLocal() as db:
                 repository = ChatRepository(db)
@@ -217,7 +228,6 @@ class ConversationService:
             for record in records
             if record.role in {"user", "assistant"} and record.content.strip()
         ]
-        messages.append(ChatMessage(role="user", content=current_message))
         return messages
 
     def _to_context_message(self, record: ChatMessageRecord) -> ChatMessage:
