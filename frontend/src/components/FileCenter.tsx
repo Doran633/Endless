@@ -176,7 +176,7 @@ export default function FileCenter() {
           await deleteFile(file.id);
           const currentRagFile = currentSessionId ? sessionRagFiles[currentSessionId] : undefined;
           if (currentRagFile?.fileId === file.id) {
-            clearCurrentSessionRagFile();
+            await clearCurrentSessionRagFile();
           }
           message.success(`"${file.original_name}" 已删除`);
         } catch (error) {

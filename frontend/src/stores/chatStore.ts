@@ -1,7 +1,13 @@
 import { create } from 'zustand';
-import type { Message, Session } from '../types';
-import { mockMessages, mockSessions } from '../api/mock';
-import { sendChatMessage } from '../api/chatApi';
+import type { ChatMessage, ChatMessageMetadata, ChatSession, Message, Session } from '../types';
+import {
+  bindChatSessionFile,
+  createChatSession,
+  deleteChatSession,
+  listChatMessages,
+  listChatSessions,
+  sendChatMessage,
+} from '../api/chatApi';
 import { askFile } from '../api/fileApi';
 import { useFileStore } from './fileStore';
 
@@ -19,62 +25,161 @@ interface ChatState {
   messages: Record<string, Message[]>;
   sessionRagFiles: Record<string, SessionRagFile>;
   isStreaming: boolean;
+  isLoadingSessions: boolean;
 
-  selectSession: (id: string) => void;
-  createSession: (mode: 'general' | 'file', fileId?: string) => string;
-  bindRagFileToCurrentSession: (fileId: string, fileName: string) => void;
-  clearCurrentSessionRagFile: () => void;
+  loadSessions: () => Promise<void>;
+  selectSession: (id: string) => Promise<void>;
+  createSession: (mode: 'general' | 'file', fileId?: string) => Promise<string>;
+  bindRagFileToCurrentSession: (fileId: string, fileName: string) => Promise<void>;
+  clearCurrentSessionRagFile: () => Promise<void>;
   sendMessage: (content: string) => Promise<void>;
-  deleteSession: (id: string) => void;
+  deleteSession: (id: string) => Promise<void>;
+}
+
+function toSession(record: ChatSession): Session {
+  return {
+    id: record.id,
+    title: record.title,
+    mode: record.bound_file_id ? 'file' : 'general',
+    fileId: record.bound_file_id ?? undefined,
+    createdAt: record.created_at,
+    updatedAt: record.updated_at,
+  };
+}
+
+function normalizeMetadata(metadata?: ChatMessageMetadata | null): Message['metadata'] {
+  if (!metadata) return undefined;
+  return {
+    ...metadata,
+    rag_file_name: metadata.rag_file_name ?? undefined,
+    used_chunks: metadata.used_chunks?.map((chunk) => ({
+      chunk_id: chunk.chunk_id,
+      chunk_index: chunk.chunk_index,
+      score: chunk.score,
+      char_count: chunk.char_count,
+      content_preview:
+        chunk.content_preview ??
+        (chunk.content && chunk.content.length > 180
+          ? `${chunk.content.slice(0, 180)}...`
+          : chunk.content ?? ''),
+    })),
+  };
+}
+
+function toMessage(record: ChatMessage): Message {
+  return {
+    id: record.id,
+    role: record.role,
+    content: record.content,
+    createdAt: record.created_at,
+    metadata: normalizeMetadata(record.metadata),
+  };
+}
+
+function buildRagFileMap(sessions: Session[]): Record<string, SessionRagFile> {
+  const files = useFileStore.getState().files;
+  return sessions.reduce<Record<string, SessionRagFile>>((acc, session) => {
+    if (!session.fileId) return acc;
+    const file = files.find((item) => item.id === session.fileId);
+    acc[session.id] = {
+      fileId: session.fileId,
+      fileName: file?.original_name ?? session.fileId,
+    };
+    return acc;
+  }, {});
+}
+
+function buildAutoTitle(content: string): string {
+  const normalized = content.trim().replace(/\s+/g, ' ');
+  if (!normalized) return '';
+  return normalized.length > 24 ? `${normalized.slice(0, 24)}...` : normalized;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
-  sessions: mockSessions,
-  currentSessionId: mockSessions[0]?.id ?? null,
-  messages: mockMessages,
+  sessions: [],
+  currentSessionId: null,
+  messages: {},
   sessionRagFiles: {},
   isStreaming: false,
+  isLoadingSessions: false,
 
-  selectSession: (id: string) => {
-    set({ currentSessionId: id });
+  loadSessions: async () => {
+    set({ isLoadingSessions: true });
+    try {
+      let sessionRecords = await listChatSessions();
+      if (sessionRecords.length === 0) {
+        const created = await createChatSession();
+        sessionRecords = [created];
+      }
+
+      const sessions = sessionRecords.map(toSession);
+      const currentSessionId = get().currentSessionId ?? sessions[0]?.id ?? null;
+      set({
+        sessions,
+        currentSessionId,
+        sessionRagFiles: buildRagFileMap(sessions),
+      });
+
+      if (currentSessionId) {
+        await get().selectSession(currentSessionId);
+      }
+    } finally {
+      set({ isLoadingSessions: false });
+    }
   },
 
-  createSession: (mode: 'general' | 'file', fileId?: string) => {
-    const id = `session-${Date.now()}`;
-    const session: Session = {
-      id,
-      title: mode === 'file' ? '文件问答' : '新对话',
-      mode,
-      fileId,
-      createdAt: new Date().toISOString(),
-    };
+  selectSession: async (id: string) => {
+    set({ currentSessionId: id });
+    const records = await listChatMessages(id);
+    set((state) => ({
+      messages: {
+        ...state.messages,
+        [id]: records.map(toMessage),
+      },
+    }));
+  },
+
+  createSession: async (mode: 'general' | 'file', fileId?: string) => {
+    const created = await createChatSession(mode === 'file' ? '文件问答' : '新对话', 'chat');
+    const session = toSession({ ...created, bound_file_id: fileId ?? created.bound_file_id });
+
     set((state) => ({
       sessions: [session, ...state.sessions],
-      currentSessionId: id,
-      messages: { ...state.messages, [id]: [] },
+      currentSessionId: session.id,
+      messages: { ...state.messages, [session.id]: [] },
     }));
-    return id;
+
+    if (fileId) {
+      const file = useFileStore.getState().getFileById(fileId);
+      await get().bindRagFileToCurrentSession(fileId, file?.original_name ?? fileId);
+    }
+
+    return session.id;
   },
 
-  bindRagFileToCurrentSession: (fileId: string, fileName: string) => {
+  bindRagFileToCurrentSession: async (fileId: string, fileName: string) => {
     const { currentSessionId } = get();
     if (!currentSessionId) return;
 
+    await bindChatSessionFile(currentSessionId, fileId);
     set((state) => ({
       sessionRagFiles: {
         ...state.sessionRagFiles,
         [currentSessionId]: { fileId, fileName },
       },
       sessions: state.sessions.map((session) =>
-        session.id === currentSessionId ? { ...session, mode: 'file', fileId } : session
+        session.id === currentSessionId
+          ? { ...session, mode: 'file', fileId, updatedAt: new Date().toISOString() }
+          : session
       ),
     }));
   },
 
-  clearCurrentSessionRagFile: () => {
+  clearCurrentSessionRagFile: async () => {
     const { currentSessionId } = get();
     if (!currentSessionId) return;
 
+    await bindChatSessionFile(currentSessionId, null);
     set((state) => {
       const sessionRagFiles = { ...state.sessionRagFiles };
       delete sessionRagFiles[currentSessionId];
@@ -82,7 +187,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         sessionRagFiles,
         sessions: state.sessions.map((session) =>
           session.id === currentSessionId
-            ? { ...session, mode: 'general', fileId: undefined }
+            ? { ...session, mode: 'general', fileId: undefined, updatedAt: new Date().toISOString() }
             : session
         ),
       };
@@ -90,11 +195,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   sendMessage: async (content: string) => {
-    const { currentSessionId, messages } = get();
+    const { currentSessionId } = get();
     if (!currentSessionId) return;
 
+    const autoTitle = buildAutoTitle(content);
+
     const userMsg: Message = {
-      id: `msg-${Date.now()}`,
+      id: `local-user-${Date.now()}`,
       role: 'user',
       content,
       createdAt: new Date().toISOString(),
@@ -105,19 +212,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
         ...state.messages,
         [currentSessionId]: [...(state.messages[currentSessionId] || []), userMsg],
       },
+      sessions: autoTitle
+        ? state.sessions.map((session) =>
+            session.id === currentSessionId && session.title === '新对话'
+              ? { ...session, title: autoTitle }
+              : session
+          )
+        : state.sessions,
       isStreaming: true,
     }));
-
-    const session = get().sessions.find((s) => s.id === currentSessionId);
-    if (session && messages[currentSessionId]?.length === 0) {
-      set((state) => ({
-        sessions: state.sessions.map((s) =>
-          s.id === currentSessionId
-            ? { ...s, title: content.length > 20 ? `${content.slice(0, 20)}...` : content }
-            : s
-        ),
-      }));
-    }
 
     let aiContent: string;
     let aiMetadata: Message['metadata'] = {};
@@ -128,10 +231,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const currentRagFile = get().sessionRagFiles[currentSessionId];
 
       if (isIngesting) {
-        // Do not fall back to ordinary chat while a file is being indexed.
-        aiContent = '文件还在处理中，请稍等完成索引后再基于该文件提问。';
+        aiContent = '文件还在处理中，请稍等索引完成后再基于该文件提问。';
       } else if (currentRagFile) {
-        const ragResponse = await askFile(currentRagFile.fileId, content, DEFAULT_RAG_TOP_K);
+        const ragResponse = await askFile(
+          currentRagFile.fileId,
+          content,
+          DEFAULT_RAG_TOP_K,
+          currentSessionId
+        );
         aiContent = ragResponse.answer;
         aiMetadata = {
           rag_file_id: ragResponse.file_id,
@@ -142,15 +249,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
             chunk_id: chunk.chunk_id,
             chunk_index: chunk.chunk_index,
             score: chunk.score,
+            char_count: chunk.char_count,
             content_preview:
               chunk.content.length > 180 ? `${chunk.content.slice(0, 180)}...` : chunk.content,
           })),
         };
       } else {
-        aiContent = await sendChatMessage(content);
-        aiMetadata = {
-          token_count: Math.floor(Math.random() * 500) + 100,
-        };
+        aiContent = await sendChatMessage(content, currentSessionId);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'AI 回复失败，请稍后重试';
@@ -158,7 +263,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
 
     const aiMsg: Message = {
-      id: `msg-${Date.now() + 1}`,
+      id: `local-assistant-${Date.now() + 1}`,
       role: 'assistant',
       content: aiContent,
       createdAt: new Date().toISOString(),
@@ -172,9 +277,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
       },
       isStreaming: false,
     }));
+
+    // Refresh from the backend so local optimistic messages are replaced by persisted records.
+    await get().selectSession(currentSessionId);
+    await get().loadSessions();
   },
 
-  deleteSession: (id: string) => {
+  deleteSession: async (id: string) => {
+    await deleteChatSession(id);
     set((state) => {
       const newSessions = state.sessions.filter((s) => s.id !== id);
       const newMessages = { ...state.messages };
@@ -189,5 +299,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
           state.currentSessionId === id ? newSessions[0]?.id ?? null : state.currentSessionId,
       };
     });
+
+    const { currentSessionId } = get();
+    if (currentSessionId) {
+      await get().selectSession(currentSessionId);
+    } else {
+      await get().loadSessions();
+    }
   },
 }));

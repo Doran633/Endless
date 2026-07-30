@@ -25,6 +25,9 @@ from app.services.rag_service import RagService
 
 
 class ConversationService:
+    DEFAULT_SESSION_TITLE = "新对话"
+    MAX_AUTO_TITLE_LENGTH = 24
+
     def answer_and_persist_chat(self, session_id: str, message: str) -> dict[str, object]:
         self._ensure_session_exists(session_id)
 
@@ -38,6 +41,7 @@ class ConversationService:
                 "token_count": self._sum_token_count(result.get("usage")),
             },
         )
+        self.maybe_update_session_title(session_id, message)
         return result
 
     def ask_file_and_persist(
@@ -59,6 +63,7 @@ class ConversationService:
             content=result.answer,
             metadata=self._build_rag_metadata(result, rag_file_name),
         )
+        self.maybe_update_session_title(session_id, result.query)
         return result
 
     def create_session(self, title: str = "新对话", mode: str = "chat") -> ChatSessionResponse:
@@ -150,6 +155,34 @@ class ConversationService:
                 return ChatRepository(db).clear_bound_file_for_file(file_id)
         except SQLAlchemyError as exc:
             raise ChatSessionStorageError("Failed to clear deleted file bindings") from exc
+
+    def maybe_update_session_title(self, session_id: str, user_content: str) -> None:
+        auto_title = self._build_auto_title(user_content)
+        if not auto_title:
+            return
+
+        try:
+            with SessionLocal() as db:
+                repository = ChatRepository(db)
+                session = repository.get_session(session_id)
+                if session is None:
+                    raise ChatSessionNotFoundError()
+                if session.title != self.DEFAULT_SESSION_TITLE:
+                    return
+                if not repository.update_session_title(session_id, auto_title):
+                    raise ChatSessionNotFoundError()
+        except ChatSessionNotFoundError:
+            raise
+        except SQLAlchemyError as exc:
+            raise ChatSessionStorageError("Failed to update chat session title") from exc
+
+    def _build_auto_title(self, content: str) -> str:
+        normalized = " ".join(content.split())
+        if not normalized:
+            return ""
+        if len(normalized) <= self.MAX_AUTO_TITLE_LENGTH:
+            return normalized
+        return f"{normalized[: self.MAX_AUTO_TITLE_LENGTH]}..."
 
     def _ensure_session_exists(self, session_id: str) -> None:
         try:

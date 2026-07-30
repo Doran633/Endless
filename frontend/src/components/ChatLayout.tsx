@@ -1,13 +1,30 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { message } from 'antd';
 import Sidebar from './Sidebar';
 import ChatArea from './ChatArea';
 import FileCenter from './FileCenter';
 import { useChatStore } from '../stores/chatStore';
+import { useFileStore } from '../stores/fileStore';
 import type { NavView } from './Sidebar';
 
 export default function ChatLayout() {
   const [activeNav, setActiveNav] = useState<NavView>('chat');
-  const currentSessionId = useChatStore((s) => s.currentSessionId);
+  const loadSessions = useChatStore((s) => s.loadSessions);
+  const loadFiles = useFileStore((s) => s.loadFiles);
+
+  useEffect(() => {
+    async function hydrateWorkspace() {
+      try {
+        await loadFiles();
+        await loadSessions();
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : '工作台恢复失败';
+        message.error(errorMessage);
+      }
+    }
+
+    hydrateWorkspace();
+  }, [loadFiles, loadSessions]);
 
   // When a session is selected from sidebar, auto-switch to chat view
   const handleNavChange = (view: NavView) => {

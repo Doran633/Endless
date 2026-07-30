@@ -49,6 +49,15 @@ class ChatRepository:
         self.db.commit()
         return message_count
 
+    def update_session_title(self, session_id: str, title: str) -> bool:
+        session = self.get_session(session_id)
+        if session is None:
+            return False
+        session.title = title
+        session.updated_at = datetime.now(timezone.utc)
+        self.db.commit()
+        return True
+
     def update_bound_file(self, session_id: str, file_id: str) -> bool:
         session = self.get_session(session_id)
         if session is None:

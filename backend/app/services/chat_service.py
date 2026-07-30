@@ -10,7 +10,12 @@ class ChatService:
         messages = [
             ChatMessage(
                 role="system",
-                content="你是 WorkBuddy 企业内部 AI 助手，回答要清晰、简洁、可执行。",
+                content=(
+                    "你是北辰agent，一个独立网页版 AI 助手。"
+                    "你可以进行普通 AI 聊天，并在用户上传和索引文档后进行单文件 RAG 问答。"
+                    "不要自称 WorkBuddy，也不要声称已经接入日程、企业权限、企业系统或未实现的工具。"
+                    "回答要清晰、简洁、可执行。"
+                ),
             ),
             ChatMessage(role="user", content=content),
         ]

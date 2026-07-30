@@ -1,4 +1,4 @@
-import { Typography, Card, Row, Col, Space, Button } from 'antd';
+import { Typography, Card, Row, Col, Space, Button, message } from 'antd';
 import {
   FileTextOutlined,
   MessageOutlined,
@@ -44,11 +44,15 @@ export default function WelcomePage() {
   const createSession = useChatStore((s) => s.createSession);
   const selectSession = useChatStore((s) => s.selectSession);
 
-  const handleQuickStart = (text: string) => {
-    const sessionId = createSession('general');
-    selectSession(sessionId);
-    // 通过 chatStore 发送消息
-    useChatStore.getState().sendMessage(text);
+  const handleQuickStart = async (text: string) => {
+    try {
+      const sessionId = await createSession('general');
+      await selectSession(sessionId);
+      await useChatStore.getState().sendMessage(text);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '会话创建失败';
+      message.error(errorMessage);
+    }
   };
 
   return (

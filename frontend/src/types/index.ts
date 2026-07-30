@@ -12,6 +12,41 @@ export interface Session {
   mode: 'general' | 'file';
   fileId?: string;
   createdAt: string;
+  updatedAt?: string;
+}
+
+export interface ChatSession {
+  id: string;
+  title: string;
+  mode: string;
+  bound_file_id?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChatMessageMetadata {
+  chunk_ids?: string[];
+  token_count?: number;
+  rag_file_id?: string;
+  rag_file_name?: string | null;
+  used_chunks?: {
+    chunk_id: string;
+    chunk_index: number;
+    score: number;
+    content?: string;
+    content_preview?: string;
+    char_count?: number;
+  }[];
+  cards?: MessageCard[];
+}
+
+export interface ChatMessage {
+  id: string;
+  session_id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  metadata?: ChatMessageMetadata | null;
+  created_at: string;
 }
 
 /** 内联卡片（文件引用 / PPT 结果） */
@@ -39,6 +74,7 @@ export interface Message {
       chunk_index: number;
       score: number;
       content_preview: string;
+      char_count?: number;
     }[];
     cards?: MessageCard[];
   };

@@ -219,8 +219,8 @@ export default function ChatInput() {
                   size="small"
                   type="text"
                   icon={<CloseOutlined />}
-                  onClick={() => {
-                    clearCurrentSessionRagFile();
+                  onClick={async () => {
+                    await clearCurrentSessionRagFile();
                     clearActiveRagFile();
                   }}
                 />

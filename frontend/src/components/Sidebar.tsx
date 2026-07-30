@@ -1,4 +1,4 @@
-import { Typography, Button, Divider, Space, Tag } from 'antd';
+import { Typography, Button, Divider, Space, Tag, message } from 'antd';
 import {
   MessageOutlined,
   FileTextOutlined,
@@ -50,15 +50,25 @@ export default function Sidebar({ activeNav, onNavChange }: SidebarProps) {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
 
-  const handleNewChat = () => {
-    const id = createSession('general');
-    selectSession(id);
-    onNavChange('chat');
+  const handleNewChat = async () => {
+    try {
+      const id = await createSession('general');
+      await selectSession(id);
+      onNavChange('chat');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '新建会话失败';
+      message.error(errorMessage);
+    }
   };
 
-  const handleSessionClick = (id: string) => {
-    selectSession(id);
-    onNavChange('chat');
+  const handleSessionClick = async (id: string) => {
+    try {
+      await selectSession(id);
+      onNavChange('chat');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '会话切换失败';
+      message.error(errorMessage);
+    }
   };
 
   return (
@@ -314,7 +324,10 @@ export default function Sidebar({ activeNav, onNavChange }: SidebarProps) {
                   style={{ color: 'rgba(255,255,255,0.35)', fontSize: 12 }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    deleteSession(session.id);
+                    deleteSession(session.id).catch((error) => {
+                      const errorMessage = error instanceof Error ? error.message : '会话删除失败';
+                      message.error(errorMessage);
+                    });
                   }}
                 />
               )}

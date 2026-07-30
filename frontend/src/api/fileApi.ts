@@ -209,14 +209,15 @@ export async function retrieveFileChunks(
 export async function askFile(
   fileId: string,
   query: string,
-  topK: number
+  topK: number,
+  sessionId?: string
 ): Promise<AskFileResponse> {
   const response = await fetch(`${API_BASE_URL}/api/v1/files/${fileId}/ask`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ query, top_k: topK }),
+    body: JSON.stringify({ query, top_k: topK, session_id: sessionId }),
   });
 
   const payload = (await response.json()) as ApiResponse<AskFileResponse>;
