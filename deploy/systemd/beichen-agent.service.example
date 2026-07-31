@@ -1,0 +1,21 @@
+# Beichen Agent systemd service example.
+# Copy to /etc/systemd/system/beichen-agent.service and adjust paths if needed.
+
+[Unit]
+Description=Beichen Agent FastAPI Backend
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/beichen-agent/app/backend
+EnvironmentFile=/opt/beichen-agent/runtime/backend.env
+ExecStart=/opt/beichen-agent/venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/opt/beichen-agent/logs/backend.log
+StandardError=append:/opt/beichen-agent/logs/backend.err.log
+
+[Install]
+WantedBy=multi-user.target

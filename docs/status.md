@@ -155,3 +155,29 @@ v1.0 鐩爣鏄瀯寤轰竴涓嫭绔嬬綉椤电増 AI 鍔╂墜銆?
 褰撳墠鏈€澶х己鍙ｆ槸锛?
 - RAG 褰撳墠浠呮敮鎸佹渶杩戜竴涓?indexed 鏂囦欢鐨勫崟鏂囦欢闂瓟銆?- 鏂囦欢鐢熷懡鍛ㄦ湡宸茬粡闂幆锛岃亰澶╀細璇濆拰娑堟伅琛ㄥ凡鍒涘缓锛孯epository 灞傚熀纭€璇诲啓鑳藉姏宸插畬鎴愩€?- 鑱婂ぉ浼氳瘽 API銆佹櫘閫氳亰澶?RAG 娑堟伅钀藉簱銆佸墠绔埛鏂版仮澶嶃€佸綋鍓嶆枃浠剁粦瀹氬墠绔帴鍏ャ€佽嚜鍔ㄤ細璇濇爣棰樸€佹櫘閫氳亰澶╁熀纭€涓婁笅鏂囩獥鍙ｃ€丷AG 鏂囦欢闂瓟杩炵画杩介棶銆佹湰鍦拌瘯杩愯鑴氭湰鍜屾湰鍦拌瘯杩愯鏂囨。宸插畬鎴愩€?- AI 鏁版嵁鍒嗘瀽浠嶅彧鏄鍒掕兘鍔涳紝灏氭湭杩涘叆瀹炵幇銆?
 鍥犳锛屼笅涓€闃舵搴斿 v1.4 Release Readiness 鍋氭渶缁堟牳瀵瑰拰 GitHub 鍙戝竷鍓嶆敹灏炬鏌ワ紝鍐嶅喅瀹氭槸鍚﹁繘鍏ユ寮忛儴缃插噯澶囥€佷細璇濇憳瑕併€佸巻鍙叉秷鎭涔夋绱㈡垨 AI 鏁版嵁鍒嗘瀽瑙勫垝瀹炵幇銆侫I 鏁版嵁鍒嗘瀽缁х画淇濈暀瑙勫垝杈圭晫锛屼笉鎸ゅ崰褰撳墠涓婚摼璺€?
+# v1.5.3 状态更新
+
+当前阶段：Deployment Assets 部署资产整理。
+
+本阶段新增：
+
+- `deploy/nginx/beichen-agent.conf.example`：Ubuntu VPS Nginx 示例配置。
+- `deploy/systemd/beichen-agent.service.example`：FastAPI 后端 systemd 服务模板。
+- `docs/deployment_guide.md`：VPS 部署指南，覆盖前端构建、后端运行、Nginx、HTTPS、环境变量、备份、更新和回滚。
+- `docs/v1.5_deployment_assets_report.md`：本阶段实现报告。
+
+当前部署建议：
+
+- 使用小型 Ubuntu VPS。
+- 前端通过 `npm run build` 生成静态文件，由 Nginx 托管。
+- 后端通过 systemd 守护 Uvicorn，并只监听 `127.0.0.1:8000`。
+- Nginx 将 `/api/` 和 `/health` 反向代理到 FastAPI。
+- SQLite、uploads 和 vector_store 放在服务器持久化目录，并纳入备份。
+- 公网试运行必须配置 HTTPS 和 `APP_ACCESS_PASSWORD`。
+
+本阶段未做：
+
+- 未新增 AI 功能。
+- 未修改 RAG 主链路。
+- 未修改数据库结构。
+- 未引入 Docker、Kubernetes 或复杂 CI/CD。

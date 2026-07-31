@@ -10,6 +10,16 @@ APP_ACCESS_HEADER=X-Beichen-Access
 本地开发可以保持 `APP_ACCESS_PASSWORD=` 为空，此时后端不会启用访问保护。部署时如果设置了口令，前端入口页需要输入相同口令，之后浏览器会把口令保存在 `localStorage`，并在调用 `/api/v1/*` 接口时自动携带请求头。
 
 这只是 MVP 阶段的最小访问保护，不是正式用户系统。它不支持注册、账号、角色、权限隔离、多用户审计或 JWT refresh token。
+
+# v1.5.3 部署入口
+
+如果准备部署到小型 Ubuntu VPS，可以先阅读：
+
+- `docs/deployment_guide.md`
+- `deploy/nginx/beichen-agent.conf.example`
+- `deploy/systemd/beichen-agent.service.example`
+
+部署模板中的域名、路径、API Key 和访问口令都使用占位符。不要把真实生产环境变量、真实访问口令、上传文件、SQLite 数据库或 vector_store 索引提交到 GitHub。
 # 鍖楄景agent
 
 鍖楄景agent 鏄竴涓嫭绔嬬綉椤电増 AI 鍔╂墜 MVP锛屽綋鍓嶈仛鐒︿釜浜烘湰鍦拌瘯杩愯鍜屽崟鏂囦欢 RAG 闂瓟銆?
