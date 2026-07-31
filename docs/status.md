@@ -4,9 +4,9 @@
 
 ## 1. 当前版本
 
-当前版本：`v1.3.2`
+当前版本：`v1.4.2`
 
-当前阶段：RAG Context Follow-up 文件问答连续追问阶段。
+当前阶段：Release Readiness / Documentation Sync 本地试运行文档同步阶段。
 
 当前状态判断：
 
@@ -68,6 +68,16 @@
 - 已完成 RAG 文件问答连续追问基础能力：`POST /api/v1/files/{file_id}/ask` 携带 `session_id` 时，后端会读取当前会话最近 6 条历史消息，并作为“最近对话上下文”加入 RAG prompt。
 - RAG 检索仍基于当前用户问题执行，不改变 Retrieval、VectorStore 和 Embedding 主链路。
 - 无 `session_id` 的普通聊天和 RAG 问答仍保持单轮调用。
+- 已完成 GitHub Safety Check：确认 `backend/.env`、`backend/uploads/`、`backend/vector_store/`、`backend/data/`、`.claude/` 等敏感路径未被 Git 跟踪，并补充发布包、压缩包和 SQLite 文件忽略规则。
+- 已新增 Windows 本地试运行脚本：
+  - `scripts/check-local.ps1`
+  - `scripts/start-local.ps1`
+  - `scripts/stop-local.ps1`
+- 本地脚本固定使用后端端口 `8000` 和前端端口 `5173`，停止脚本只处理监听固定端口的进程，不按进程名批量结束 Python 或 Node。
+- 已同步 README：当前功能、SQLite 持久化、本地脚本、Mock / 真实 API 配置、文件问答流程和安全边界已与当前代码状态对齐。
+- 已修正 `backend/.env.example` 中的旧命名，`APP_NAME` 不再使用 WorkBuddy。
+- 已新增 `docs/local_trial_guide.md`，用于指导可信任试用者在 Windows 本地运行项目。
+- 已新增 `docs/troubleshooting.md`，覆盖端口占用、前端打不开、后端不可用、`Failed to fetch`、API Key、Embedding、文件问答和临时公网地址等常见问题。
 
 ## 2. 当前 v1.0 目标
 
@@ -330,13 +340,13 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 
 当前正在推进的模块：
 
-- v1.3 RAG Context Follow-up 文件问答连续追问。
-- RAG 短上下文联调和稳定性验证。
+- v1.4 Release Readiness 本地试运行整理。
+- README、`.env.example`、本地试运行指南和常见问题文档同步。
 
 下一步最适合推进：
 
-- 对普通聊天和 RAG 文件问答连续追问效果进行手动联调。
-- 后续再评估是否进入会话摘要、历史消息语义检索或部署前稳定性整理。
+- 对 v1.4 文档和脚本进行最终核对。
+- 后续进入 GitHub 发布前收尾检查或正式部署准备规划。
 
 ## 5. 未开始模块
 
@@ -399,7 +409,7 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 
 当前项目不是完整可用的 AI 应用 MVP，而是：
 
-**北辰agent 简洁 UI + 文件中心轻量工作台体验 + 后端真实 LLM 聊天闭环 + 后端本地文件上传闭环 + 文件元数据 SQLite 持久化 + 文件处理状态持久化 + 文件列表刷新恢复 + 最小文档解析闭环 + 文本切块闭环 + Mock / OpenAI-compatible embedding 闭环 + 本地 VectorStore 闭环 + Retrieval 检索闭环 + 单文件 RAG 问答闭环 + 聊天侧 RAG 问答体验 + 普通聊天基础上下文窗口 + RAG 文件问答连续追问。**
+**北辰agent 简洁 UI + 文件中心轻量工作台体验 + 后端真实 LLM 聊天闭环 + 后端本地文件上传闭环 + 文件元数据 SQLite 持久化 + 文件处理状态持久化 + 文件列表刷新恢复 + 最小文档解析闭环 + 文本切块闭环 + Mock / OpenAI-compatible embedding 闭环 + 本地 VectorStore 闭环 + Retrieval 检索闭环 + 单文件 RAG 问答闭环 + 聊天侧 RAG 问答体验 + 普通聊天基础上下文窗口 + RAG 文件问答连续追问 + GitHub 安全检查 + Windows 本地试运行脚本 + 本地试运行文档。**
 
 项目已经具备继续演进的基础边界：
 
@@ -422,7 +432,7 @@ v1.0 目标是构建一个独立网页版 AI 助手。
 
 - RAG 当前仅支持最近一个 indexed 文件的单文件问答。
 - 文件生命周期已经闭环，聊天会话和消息表已创建，Repository 层基础读写能力已完成。
-- 聊天会话 API、普通聊天/RAG 消息落库、前端刷新恢复、当前文件绑定前端接入、自动会话标题、普通聊天基础上下文窗口和 RAG 文件问答连续追问已完成。
+- 聊天会话 API、普通聊天/RAG 消息落库、前端刷新恢复、当前文件绑定前端接入、自动会话标题、普通聊天基础上下文窗口、RAG 文件问答连续追问、本地试运行脚本和本地试运行文档已完成。
 - AI 数据分析仍只是规划能力，尚未进入实现。
 
-因此，下一阶段应先对 v1.3 普通聊天和 RAG 连续追问能力进行联调和收尾检查，再决定是否进入会话摘要、历史消息语义检索、部署前稳定性整理或 AI 数据分析规划实现。AI 数据分析继续保留规划边界，不挤占当前主链路。
+因此，下一阶段应对 v1.4 Release Readiness 做最终核对和 GitHub 发布前收尾检查，再决定是否进入正式部署准备、会话摘要、历史消息语义检索或 AI 数据分析规划实现。AI 数据分析继续保留规划边界，不挤占当前主链路。

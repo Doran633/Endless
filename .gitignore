@@ -31,6 +31,14 @@ Thumbs.db
 *.log
 npm-debug.log*
 
+# Local trial / release artifacts
+release/
+releases/
+local_trial_package/
+*.zip
+*.7z
+*.rar
+
 # Python
 __pycache__/
 *.py[cod]
@@ -51,3 +59,6 @@ backend/uploads/
 backend/vector_store/
 backend/ppt_outputs/
 backend/data/
+*.db
+*.sqlite
+*.sqlite3
