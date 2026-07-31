@@ -15,8 +15,10 @@ load_dotenv(BACKEND_DIR / ".env", override=False)
 
 @dataclass(frozen=True)
 class Settings:
-    app_name: str = "WorkBuddy Backend"
+    app_name: str = os.getenv("APP_NAME", "Beichen Agent Backend")
     backend_dir: Path = BACKEND_DIR
+    app_access_password: str | None = os.getenv("APP_ACCESS_PASSWORD") or None
+    app_access_header: str = os.getenv("APP_ACCESS_HEADER", "X-Beichen-Access")
     llm_provider: str = os.getenv("LLM_PROVIDER", "mock").lower()
     llm_model: str = os.getenv("LLM_MODEL", "mock-chat")
     llm_timeout_seconds: int = int(os.getenv("LLM_TIMEOUT_SECONDS", "30"))

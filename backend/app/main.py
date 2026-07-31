@@ -5,6 +5,7 @@ from app.api.v1.chat import router as chat_router
 from app.api.v1.chat import session_router as chat_session_router
 from app.api.v1.files import router as files_router
 from app.api.v1.health import router as health_router
+from app.core.access_control import access_control_middleware
 from app.core.config import settings
 from app.core.exception_handlers import register_exception_handlers
 from app.db.init_db import init_db
@@ -12,6 +13,7 @@ from app.db.init_db import init_db
 
 app = FastAPI(title=settings.app_name)
 register_exception_handlers(app)
+app.middleware("http")(access_control_middleware)
 
 app.add_middleware(
     CORSMiddleware,

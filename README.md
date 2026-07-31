@@ -1,36 +1,43 @@
-# 北辰agent
+﻿# v1.5.1 最小访问保护
 
-北辰agent 是一个独立网页版 AI 助手 MVP，当前聚焦个人本地试运行和单文件 RAG 问答。
+公网部署时，建议在 `backend/.env` 中配置共享访问口令，避免陌生人直接调用后端并消耗你的 LLM / Embedding API Key。
 
-当前已支持：
+```env
+APP_ACCESS_PASSWORD=请填写一个足够长的随机口令
+APP_ACCESS_HEADER=X-Beichen-Access
+```
 
-- AI 聊天
-- 真实 LLM API 调用
-- 文件上传
-- TXT / DOCX / 可复制文本型 PDF 解析
-- 文本切块
+本地开发可以保持 `APP_ACCESS_PASSWORD=` 为空，此时后端不会启用访问保护。部署时如果设置了口令，前端入口页需要输入相同口令，之后浏览器会把口令保存在 `localStorage`，并在调用 `/api/v1/*` 接口时自动携带请求头。
+
+这只是 MVP 阶段的最小访问保护，不是正式用户系统。它不支持注册、账号、角色、权限隔离、多用户审计或 JWT refresh token。
+# 鍖楄景agent
+
+鍖楄景agent 鏄竴涓嫭绔嬬綉椤电増 AI 鍔╂墜 MVP锛屽綋鍓嶈仛鐒︿釜浜烘湰鍦拌瘯杩愯鍜屽崟鏂囦欢 RAG 闂瓟銆?
+褰撳墠宸叉敮鎸侊細
+
+- AI 鑱婂ぉ
+- 鐪熷疄 LLM API 璋冪敤
+- 鏂囦欢涓婁紶
+- TXT / DOCX / 鍙鍒舵枃鏈瀷 PDF 瑙ｆ瀽
+- 鏂囨湰鍒囧潡
 - Mock / OpenAI-compatible Embedding
-- 本地 JSON VectorStore
-- 单文件 Retrieval 检索
-- 单文件 RAG 问答
-- 聊天侧上传文件后直接基于文件提问
-- 普通聊天短上下文
-- RAG 文件问答连续追问
-- SQLite + SQLAlchemy 文件、会话和消息持久化
-- Windows 本地检查、启动和停止脚本
+- 鏈湴 JSON VectorStore
+- 鍗曟枃浠?Retrieval 妫€绱?- 鍗曟枃浠?RAG 闂瓟
+- 鑱婂ぉ渚т笂浼犳枃浠跺悗鐩存帴鍩轰簬鏂囦欢鎻愰棶
+- 鏅€氳亰澶╃煭涓婁笅鏂?- RAG 鏂囦欢闂瓟杩炵画杩介棶
+- SQLite + SQLAlchemy 鏂囦欢銆佷細璇濆拰娑堟伅鎸佷箙鍖?- Windows 鏈湴妫€鏌ャ€佸惎鍔ㄥ拰鍋滄鑴氭湰
 
-当前不包含：
+褰撳墠涓嶅寘鍚細
 
-- 企业登录
-- 企业权限
-- 多租户
-- 多文件 RAG
+- 浼佷笟鐧诲綍
+- 浼佷笟鏉冮檺
+- 澶氱鎴?- 澶氭枃浠?RAG
 - Agent Workflow
-- PPT 生成
-- 正式线上部署方案
-- 生产级向量数据库
+- PPT 鐢熸垚
+- 姝ｅ紡绾夸笂閮ㄧ讲鏂规
+- 鐢熶骇绾у悜閲忔暟鎹簱
 
-## 技术栈
+## 鎶€鏈爤
 
 Frontend:
 
@@ -54,21 +61,18 @@ Backend:
 
 Storage:
 
-- `backend/uploads/` 保存原始上传文件
-- `backend/vector_store/` 保存本地 JSON 向量索引
-- `backend/data/` 保存 SQLite 数据库
+- `backend/uploads/` 淇濆瓨鍘熷涓婁紶鏂囦欢
+- `backend/vector_store/` 淇濆瓨鏈湴 JSON 鍚戦噺绱㈠紩
+- `backend/data/` 淇濆瓨 SQLite 鏁版嵁搴?
+杩欎簺杩愯鏁版嵁榛樿涓嶄細鎻愪氦鍒?Git銆?
+## Windows 鎺ㄨ崘鍚姩鏂瑰紡
 
-这些运行数据默认不会提交到 Git。
-
-## Windows 推荐启动方式
-
-第一次运行前，请先安装：
+绗竴娆¤繍琛屽墠锛岃鍏堝畨瑁咃細
 
 - Python
 - Node.js / npm
 
-然后安装依赖：
-
+鐒跺悗瀹夎渚濊禆锛?
 ```powershell
 cd backend
 pip install -r requirements.txt
@@ -79,62 +83,54 @@ cd frontend
 npm install
 ```
 
-复制后端配置：
-
+澶嶅埗鍚庣閰嶇疆锛?
 ```powershell
 copy backend\.env.example backend\.env
 ```
 
-检查环境：
+妫€鏌ョ幆澧冿細
 
 ```powershell
 scripts\check-local.ps1
 ```
 
-启动项目：
-
+鍚姩椤圭洰锛?
 ```powershell
 scripts\start-local.ps1
 ```
 
-访问：
-
+璁块棶锛?
 ```text
 http://127.0.0.1:5173/
 ```
 
-停止项目：
-
+鍋滄椤圭洰锛?
 ```powershell
 scripts\stop-local.ps1
 ```
 
-## 手动启动方式
+## 鎵嬪姩鍚姩鏂瑰紡
 
-后端：
-
+鍚庣锛?
 ```powershell
 cd backend
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-前端：
-
+鍓嶇锛?
 ```powershell
 cd frontend
 npm run dev -- --host 127.0.0.1 --port 5173 --strictPort
 ```
 
-访问：
-
+璁块棶锛?
 ```text
 http://127.0.0.1:5173/
 ```
 
-## Mock 模式
+## Mock 妯″紡
 
-如果没有 API Key，可以先使用 Mock 模式。
-
+濡傛灉娌℃湁 API Key锛屽彲浠ュ厛浣跨敤 Mock 妯″紡銆?
 `backend/.env`:
 
 ```env
@@ -146,52 +142,37 @@ EMBEDDING_MODEL=mock-embedding
 EMBEDDING_DIMENSION=16
 ```
 
-Mock 模式适合检查页面和流程，但不代表真实回答质量。
+Mock 妯″紡閫傚悎妫€鏌ラ〉闈㈠拰娴佺▼锛屼絾涓嶄唬琛ㄧ湡瀹炲洖绛旇川閲忋€?
+## 鐪熷疄 API 妯″紡
 
-## 真实 API 模式
-
-使用 OpenAI-compatible LLM：
-
+浣跨敤 OpenAI-compatible LLM锛?
 ```env
 LLM_PROVIDER=openai
 LLM_MODEL=deepseek-v4-flash
 LLM_TIMEOUT_SECONDS=60
-OPENAI_API_KEY=你的 API Key
+OPENAI_API_KEY=浣犵殑 API Key
 OPENAI_BASE_URL=https://api.deepseek.com
 ```
 
-使用 OpenAI-compatible Embedding：
-
+浣跨敤 OpenAI-compatible Embedding锛?
 ```env
 EMBEDDING_PROVIDER=openai
 EMBEDDING_MODEL=text-embedding-3-small
 EMBEDDING_DIMENSION=1536
 EMBEDDING_TIMEOUT_SECONDS=60
-EMBEDDING_API_KEY=你的 Embedding API Key
+EMBEDDING_API_KEY=浣犵殑 Embedding API Key
 EMBEDDING_BASE_URL=https://api.openai.com/v1
 ```
 
-如果 `EMBEDDING_API_KEY` 或 `EMBEDDING_BASE_URL` 未设置，后端会回退使用 `OPENAI_API_KEY` 和 `OPENAI_BASE_URL`。
+濡傛灉 `EMBEDDING_API_KEY` 鎴?`EMBEDDING_BASE_URL` 鏈缃紝鍚庣浼氬洖閫€浣跨敤 `OPENAI_API_KEY` 鍜?`OPENAI_BASE_URL`銆?
+涓嶈鎶婄湡瀹?API Key 鎻愪氦鍒?Git銆?
+## 鏂囦欢闂瓟娴佺▼
 
-不要把真实 API Key 提交到 Git。
-
-## 文件问答流程
-
-推荐流程：
-
-1. 启动后端和前端。
-2. 打开 `http://127.0.0.1:5173/`。
-3. 在聊天输入区上传 TXT / DOCX / PDF。
-4. 等待文件自动完成解析、切块、embedding 和索引。
-5. 在聊天框里基于该文件提问。
-6. 如果继续追问，当前会话会携带最近上下文。
-
-切换 Embedding Provider 后，建议重新上传文件或重新索引文件，否则旧索引不能代表新 embedding 的语义效果。
-
-## 不要提交到 GitHub 的文件
-
-以下内容不应进入 Git：
-
+鎺ㄨ崘娴佺▼锛?
+1. 鍚姩鍚庣鍜屽墠绔€?2. 鎵撳紑 `http://127.0.0.1:5173/`銆?3. 鍦ㄨ亰澶╄緭鍏ュ尯涓婁紶 TXT / DOCX / PDF銆?4. 绛夊緟鏂囦欢鑷姩瀹屾垚瑙ｆ瀽銆佸垏鍧椼€乪mbedding 鍜岀储寮曘€?5. 鍦ㄨ亰澶╂閲屽熀浜庤鏂囦欢鎻愰棶銆?6. 濡傛灉缁х画杩介棶锛屽綋鍓嶄細璇濅細鎼哄甫鏈€杩戜笂涓嬫枃銆?
+鍒囨崲 Embedding Provider 鍚庯紝寤鸿閲嶆柊涓婁紶鏂囦欢鎴栭噸鏂扮储寮曟枃浠讹紝鍚﹀垯鏃х储寮曚笉鑳戒唬琛ㄦ柊 embedding 鐨勮涔夋晥鏋溿€?
+## 涓嶈鎻愪氦鍒?GitHub 鐨勬枃浠?
+浠ヤ笅鍐呭涓嶅簲杩涘叆 Git锛?
 - `backend/.env`
 - `frontend/.env`
 - `.env`
@@ -209,9 +190,8 @@ EMBEDDING_BASE_URL=https://api.openai.com/v1
 - `release/`
 - `local_trial_package/`
 
-## 不要发给别人的文件
-
-如果要把项目发给可信任的人试运行，默认不要包含：
+## 涓嶈鍙戠粰鍒汉鐨勬枃浠?
+濡傛灉瑕佹妸椤圭洰鍙戠粰鍙俊浠荤殑浜鸿瘯杩愯锛岄粯璁や笉瑕佸寘鍚細
 
 - `backend/.env`
 - `backend/uploads/`
@@ -220,30 +200,22 @@ EMBEDDING_BASE_URL=https://api.openai.com/v1
 - `.claude/`
 - `frontend/node_modules/`
 - `.git/`
-- 任何压缩包里混入的数据库、上传文件或 API Key
+- 浠讳綍鍘嬬缉鍖呴噷娣峰叆鐨勬暟鎹簱銆佷笂浼犳枃浠舵垨 API Key
 
-如果你允许对方使用你的 API Key，建议单独私发 `.env`，不要放进源码压缩包，也不要上传 GitHub。
+濡傛灉浣犲厑璁稿鏂逛娇鐢ㄤ綘鐨?API Key锛屽缓璁崟鐙鍙?`.env`锛屼笉瑕佹斁杩涙簮鐮佸帇缂╁寘锛屼篃涓嶈涓婁紶 GitHub銆?
+## 甯歌闂
 
-## 常见问题
-
-查看：
-
+鏌ョ湅锛?
 ```text
 docs/troubleshooting.md
 ```
 
-本地试运行说明：
+鏈湴璇曡繍琛岃鏄庯細
 
 ```text
 docs/local_trial_guide.md
 ```
 
-## 当前限制
+## 褰撳墠闄愬埗
 
-- 当前只支持最近一个 indexed 文件的单文件 RAG 问答。
-- 当前本地 JSON VectorStore 不适合生产级大规模数据。
-- 当前 SQLite 适合本地 MVP，不适合作为多人生产数据库。
-- PDF 解析仅支持可复制文本型 PDF，不支持 OCR。
-- 当前没有用户登录和权限隔离。
-- 当前没有正式部署方案。
-- Agent Workflow、企业权限、多租户和 PPT 生成暂未实现。
+- 褰撳墠鍙敮鎸佹渶杩戜竴涓?indexed 鏂囦欢鐨勫崟鏂囦欢 RAG 闂瓟銆?- 褰撳墠鏈湴 JSON VectorStore 涓嶉€傚悎鐢熶骇绾уぇ瑙勬ā鏁版嵁銆?- 褰撳墠 SQLite 閫傚悎鏈湴 MVP锛屼笉閫傚悎浣滀负澶氫汉鐢熶骇鏁版嵁搴撱€?- PDF 瑙ｆ瀽浠呮敮鎸佸彲澶嶅埗鏂囨湰鍨?PDF锛屼笉鏀寔 OCR銆?- 褰撳墠娌℃湁鐢ㄦ埛鐧诲綍鍜屾潈闄愰殧绂汇€?- 褰撳墠娌℃湁姝ｅ紡閮ㄧ讲鏂规銆?- Agent Workflow銆佷紒涓氭潈闄愩€佸绉熸埛鍜?PPT 鐢熸垚鏆傛湭瀹炵幇銆?

@@ -1,4 +1,5 @@
 import type { ChatMessage, ChatSession } from '../types';
+import { fetchWithAccess } from './http';
 
 interface ApiResponse<T> {
   code: number;
@@ -13,7 +14,7 @@ interface ChatResponseData {
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 export async function sendChatMessage(message: string, sessionId?: string): Promise<string> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/chat`, {
+  const response = await fetchWithAccess(`${API_BASE_URL}/api/v1/chat`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -31,7 +32,7 @@ export async function sendChatMessage(message: string, sessionId?: string): Prom
 }
 
 export async function listChatSessions(): Promise<ChatSession[]> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/chat/sessions`);
+  const response = await fetchWithAccess(`${API_BASE_URL}/api/v1/chat/sessions`);
   const payload = (await response.json()) as ApiResponse<{ sessions: ChatSession[] }>;
 
   if (!response.ok || payload.code !== 0 || !payload.data) {
@@ -42,7 +43,7 @@ export async function listChatSessions(): Promise<ChatSession[]> {
 }
 
 export async function createChatSession(title = '新对话', mode = 'chat'): Promise<ChatSession> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/chat/sessions`, {
+  const response = await fetchWithAccess(`${API_BASE_URL}/api/v1/chat/sessions`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -59,7 +60,7 @@ export async function createChatSession(title = '新对话', mode = 'chat'): Pro
 }
 
 export async function deleteChatSession(sessionId: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/chat/sessions/${sessionId}`, {
+  const response = await fetchWithAccess(`${API_BASE_URL}/api/v1/chat/sessions/${sessionId}`, {
     method: 'DELETE',
   });
   const payload = (await response.json()) as ApiResponse<unknown>;
@@ -70,7 +71,7 @@ export async function deleteChatSession(sessionId: string): Promise<void> {
 }
 
 export async function listChatMessages(sessionId: string): Promise<ChatMessage[]> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/chat/sessions/${sessionId}/messages`);
+  const response = await fetchWithAccess(`${API_BASE_URL}/api/v1/chat/sessions/${sessionId}/messages`);
   const payload = (await response.json()) as ApiResponse<{
     session_id: string;
     messages: ChatMessage[];
@@ -87,7 +88,7 @@ export async function bindChatSessionFile(
   sessionId: string,
   fileId: string | null
 ): Promise<ChatSession> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/chat/sessions/${sessionId}/file`, {
+  const response = await fetchWithAccess(`${API_BASE_URL}/api/v1/chat/sessions/${sessionId}/file`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',

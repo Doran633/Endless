@@ -1,256 +1,89 @@
-# 项目状态
+﻿# v1.5.1 状态更新
 
-> 本文档记录当前代码真实状态，不记录历史计划，不包含未来企业功能范围。
+当前阶段：Minimal Access Protection 最小访问保护。
 
-## 1. 当前版本
+本阶段新增：
 
-当前版本：`v1.4.2`
+- 后端支持通过 `backend/.env` 配置 `APP_ACCESS_PASSWORD` 和 `APP_ACCESS_HEADER`。
+- 当 `APP_ACCESS_PASSWORD` 为空时，本地开发不启用访问保护。
+- 当 `APP_ACCESS_PASSWORD` 非空时，后端会保护 `/api/v1/*`，请求必须携带正确访问口令请求头。
+- `GET /health` 不受访问保护影响，便于部署健康检查。
+- 前端入口页支持输入访问口令并保存到 `localStorage`。
+- 前端聊天、会话、文件、RAG 相关 API 请求会自动携带访问口令。
+- 侧边栏退出会清除本地访问口令，便于重新输入。
 
-当前阶段：Release Readiness / Documentation Sync 本地试运行文档同步阶段。
+当前限制：
 
-当前状态判断：
+- 这不是正式登录系统，不支持注册、账号、角色、权限隔离、多用户审计或 JWT refresh token。
+- 访问口令只适合个人 MVP 或可信任小范围试运行，用于降低公网 API Key 被随意消耗的风险。
+- 未来正式部署如果面向更多用户，仍需要设计真正的 Auth 模块。
+# 椤圭洰鐘舵€?
+> 鏈枃妗ｈ褰曞綋鍓嶄唬鐮佺湡瀹炵姸鎬侊紝涓嶈褰曞巻鍙茶鍒掞紝涓嶅寘鍚湭鏉ヤ紒涓氬姛鑳借寖鍥淬€?
+## 1. 褰撳墠鐗堟湰
 
-- 已完成前端 Mock 原型。
-- 已完成后端基础聊天模块。
-- 已完成前后端真实聊天联调。
-- 已完成 Mock Provider 和 OpenAI-compatible Provider 的基础配置与错误处理。
-- 已完成 `backend/.env` 安全配置读取。
-- 已完成 `backend/.env.example` 示例配置。
-- 已通过 DeepSeek OpenAI-compatible API 联调 `deepseek-v4-flash`。
-- 已完成最小文件上传闭环：前端选择文件、后端保存到 `backend/uploads/`、前端展示真实上传结果。
-- 已完成最小文档解析闭环：后端读取 `backend/uploads/` 中的文件，解析 TXT / DOCX / 可复制文本型 PDF，前端展示解析状态和文本预览。
-- 已增强 DOCX 表格解析：保留行列分隔，支持表格单元格中的段落和嵌套表格文本。
-- 已完成文本切块闭环：后端将解析全文切成 chunks，前端展示 chunk 数量和预览。
-- 已完成 mock embedding 向量化闭环：后端为 chunks 生成稳定 mock vectors，前端展示 embedding 数量、维度和向量预览。
-- 已完成真实 embedding provider 接入：后端支持 OpenAI-compatible Embedding Provider，并可通过 `.env` 在 `mock` 与 `openai` 间切换。
-- 已完成聊天侧文件接入体验优化：聊天输入区可以上传文件，并自动串联上传、解析、切块和向量化流程。
-- 已完成本地 VectorStore 闭环：后端将 chunks 和 embeddings 保存到 `backend/vector_store/` 的 JSON 索引文件，前端展示 indexed 状态和索引摘要。
-- 已完成最小 Retrieval 检索闭环：后端基于本地 VectorStore 和 query embedding 计算 cosine similarity，前端文件中心展示 top_k chunks 和 score。
-- 已完成最小 RAG 单文件问答闭环：后端基于 RetrievalService 返回的 top_k chunks 组装 RAG prompt，调用现有 LLMProvider 生成答案，前端文件中心展示回答和引用 chunks。
-- 已完成聊天侧 RAG 问答体验优化：聊天框上传文件并完成 indexed 后，当前对话会绑定最近一个文件，用户继续提问时调用 `/api/v1/files/{file_id}/ask`，回答作为聊天消息展示，并附带引用 chunks 摘要。
-- 已完成 GitHub 分享前基础整理：新增 `README.md`，更新 `backend/.env.example` 和 `.gitignore`，明确 API Key、上传文件和本地向量索引不应提交。
-- 已完成 v1.0.1 发布前检查：后端编译检查、前端类型检查、敏感文件忽略检查和基础密钥扫描均已通过。
-- 已完成北辰agent UI 简化优化：统一产品命名，聚焦“对话 + 文件中心”，隐藏当前暂不实现的 PPT 入口。
-- 已完成 SQLite + SQLAlchemy 数据库基础接入。
-- 已新增 `files` 表，用于保存文件元数据和基础处理状态。
-- 已完成上传文件元数据持久化：文件保存到 `backend/uploads/` 后，会同步写入 SQLite。
-- 已新增 `GET /api/v1/files`，用于从后端恢复文件列表。
-- 已完成文件中心刷新恢复：前端文件中心打开时会从后端读取真实文件列表。
-- 已完成文件处理状态持久化：解析、切块、向量化和本地索引保存成功后，会更新 SQLite 中的文件处理状态。
-- 已完成文件处理失败状态记录：处理失败时会尽量写入 `failed` 和 `error_message`，同时保留原始错误继续返回给调用方。
-- 已完成轻量 UI 丰富：文件中心新增状态概览，上传区、状态标签、空状态和 RAG 引用片段展示更面向用户。
-- 已完成文件中心自动处理：上传后自动执行解析、切块、embedding 和本地索引保存，并展示当前处理阶段。
-- 已新增 `DELETE /api/v1/files/{file_id}`：删除对应原始文件、本地 JSON 索引和 SQLite 文件记录。
-- 已完成前端真实删除闭环：删除前确认，成功后同步文件列表；删除当前会话绑定文件时会解除 RAG 绑定。
-- 已新增 `chat_sessions` 表，用于保存聊天会话基础信息和当前会话绑定文件字段。
-- 已新增 `chat_messages` 表，用于保存会话消息正文和 RAG 引用等消息 metadata。
-- 已新增 `ChatRepository`，支持创建会话、查询会话列表、查询单个会话、删除会话、创建消息和查询会话消息。
-- 已完成删除会话时同步删除其消息的 Repository 层基础能力。
-- 已新增 `ConversationService`，用于编排会话创建、列表查询、消息查询、会话删除和文件绑定校验。
-- 已新增会话 API：`GET /api/v1/chat/sessions`、`POST /api/v1/chat/sessions`、`DELETE /api/v1/chat/sessions/{session_id}`、`GET /api/v1/chat/sessions/{session_id}/messages`、`PATCH /api/v1/chat/sessions/{session_id}/file`。
-- 已支持会话绑定或解除单个文件，绑定时会校验文件存在且状态为 `indexed`。
-- 已支持删除文件时清除数据库中绑定该文件的会话字段。
-- 已支持 `POST /api/v1/chat` 携带可选 `session_id` 时，将普通聊天的 user 和 assistant 消息写入 `chat_messages`。
-- 已支持 `POST /api/v1/files/{file_id}/ask` 携带可选 `session_id` 时，将 RAG 问答的 user 和 assistant 消息写入 `chat_messages`。
-- 已支持在 RAG assistant 消息 `metadata_json` 中保存 `rag_file_id`、`rag_file_name`、`used_chunks` 和 `token_count`。
-- 已完成前端会话恢复：应用启动时加载后端会话列表，无会话时自动创建默认“新对话”。
-- 已完成前端历史消息恢复：切换会话时调用后端消息 API，并将消息恢复到聊天窗口。
-- 已完成前端发送普通聊天携带当前 `session_id`，消息由后端写入 `chat_messages`。
-- 已完成聊天侧 RAG 问答携带当前 `session_id`，RAG 回答和引用片段由后端写入消息 metadata。
-- 已完成聊天侧文件 indexed 后绑定当前会话文件，刷新后可根据 `bound_file_id` 恢复当前 RAG 文件提示。
-- 已完成前端删除会话调用后端 API，并同步移除本地会话和消息缓存。
-- 已完成自动会话标题：当标题仍为默认“新对话”时，普通聊天或 RAG 问答成功后会使用用户第一条消息生成简短标题。
-- 自动标题不调用额外 LLM，仅使用本地规则：去除换行和多余空格，最长 24 个字符，超出追加 `...`。
-- 已修正普通聊天系统提示：AI 身份统一为“北辰agent”，不再自称 WorkBuddy，也不声明未实现的企业系统能力。
-- 已增加前端标题乐观更新：发送消息后侧边栏会立即显示本地生成标题，后端仍负责最终持久化。
-- 已完成普通聊天基础上下文窗口：`POST /api/v1/chat` 携带 `session_id` 时，后端会读取当前会话最近 6 条历史消息并传入 LLM。
-- 已增加上下文截断策略：每条历史消息最多保留 1200 个字符，超出后追加 `...`。
-- 已完成 RAG 文件问答连续追问基础能力：`POST /api/v1/files/{file_id}/ask` 携带 `session_id` 时，后端会读取当前会话最近 6 条历史消息，并作为“最近对话上下文”加入 RAG prompt。
-- RAG 检索仍基于当前用户问题执行，不改变 Retrieval、VectorStore 和 Embedding 主链路。
-- 无 `session_id` 的普通聊天和 RAG 问答仍保持单轮调用。
-- 已完成 GitHub Safety Check：确认 `backend/.env`、`backend/uploads/`、`backend/vector_store/`、`backend/data/`、`.claude/` 等敏感路径未被 Git 跟踪，并补充发布包、压缩包和 SQLite 文件忽略规则。
-- 已新增 Windows 本地试运行脚本：
+褰撳墠鐗堟湰锛歚v1.4.2`
+
+褰撳墠闃舵锛歊elease Readiness / Documentation Sync 鏈湴璇曡繍琛屾枃妗ｅ悓姝ラ樁娈点€?
+褰撳墠鐘舵€佸垽鏂細
+
+- 宸插畬鎴愬墠绔?Mock 鍘熷瀷銆?- 宸插畬鎴愬悗绔熀纭€鑱婂ぉ妯″潡銆?- 宸插畬鎴愬墠鍚庣鐪熷疄鑱婂ぉ鑱旇皟銆?- 宸插畬鎴?Mock Provider 鍜?OpenAI-compatible Provider 鐨勫熀纭€閰嶇疆涓庨敊璇鐞嗐€?- 宸插畬鎴?`backend/.env` 瀹夊叏閰嶇疆璇诲彇銆?- 宸插畬鎴?`backend/.env.example` 绀轰緥閰嶇疆銆?- 宸查€氳繃 DeepSeek OpenAI-compatible API 鑱旇皟 `deepseek-v4-flash`銆?- 宸插畬鎴愭渶灏忔枃浠朵笂浼犻棴鐜細鍓嶇閫夋嫨鏂囦欢銆佸悗绔繚瀛樺埌 `backend/uploads/`銆佸墠绔睍绀虹湡瀹炰笂浼犵粨鏋溿€?- 宸插畬鎴愭渶灏忔枃妗ｈВ鏋愰棴鐜細鍚庣璇诲彇 `backend/uploads/` 涓殑鏂囦欢锛岃В鏋?TXT / DOCX / 鍙鍒舵枃鏈瀷 PDF锛屽墠绔睍绀鸿В鏋愮姸鎬佸拰鏂囨湰棰勮銆?- 宸插寮?DOCX 琛ㄦ牸瑙ｆ瀽锛氫繚鐣欒鍒楀垎闅旓紝鏀寔琛ㄦ牸鍗曞厓鏍间腑鐨勬钀藉拰宓屽琛ㄦ牸鏂囨湰銆?- 宸插畬鎴愭枃鏈垏鍧楅棴鐜細鍚庣灏嗚В鏋愬叏鏂囧垏鎴?chunks锛屽墠绔睍绀?chunk 鏁伴噺鍜岄瑙堛€?- 宸插畬鎴?mock embedding 鍚戦噺鍖栭棴鐜細鍚庣涓?chunks 鐢熸垚绋冲畾 mock vectors锛屽墠绔睍绀?embedding 鏁伴噺銆佺淮搴﹀拰鍚戦噺棰勮銆?- 宸插畬鎴愮湡瀹?embedding provider 鎺ュ叆锛氬悗绔敮鎸?OpenAI-compatible Embedding Provider锛屽苟鍙€氳繃 `.env` 鍦?`mock` 涓?`openai` 闂村垏鎹€?- 宸插畬鎴愯亰澶╀晶鏂囦欢鎺ュ叆浣撻獙浼樺寲锛氳亰澶╄緭鍏ュ尯鍙互涓婁紶鏂囦欢锛屽苟鑷姩涓茶仈涓婁紶銆佽В鏋愩€佸垏鍧楀拰鍚戦噺鍖栨祦绋嬨€?- 宸插畬鎴愭湰鍦?VectorStore 闂幆锛氬悗绔皢 chunks 鍜?embeddings 淇濆瓨鍒?`backend/vector_store/` 鐨?JSON 绱㈠紩鏂囦欢锛屽墠绔睍绀?indexed 鐘舵€佸拰绱㈠紩鎽樿銆?- 宸插畬鎴愭渶灏?Retrieval 妫€绱㈤棴鐜細鍚庣鍩轰簬鏈湴 VectorStore 鍜?query embedding 璁＄畻 cosine similarity锛屽墠绔枃浠朵腑蹇冨睍绀?top_k chunks 鍜?score銆?- 宸插畬鎴愭渶灏?RAG 鍗曟枃浠堕棶绛旈棴鐜細鍚庣鍩轰簬 RetrievalService 杩斿洖鐨?top_k chunks 缁勮 RAG prompt锛岃皟鐢ㄧ幇鏈?LLMProvider 鐢熸垚绛旀锛屽墠绔枃浠朵腑蹇冨睍绀哄洖绛斿拰寮曠敤 chunks銆?- 宸插畬鎴愯亰澶╀晶 RAG 闂瓟浣撻獙浼樺寲锛氳亰澶╂涓婁紶鏂囦欢骞跺畬鎴?indexed 鍚庯紝褰撳墠瀵硅瘽浼氱粦瀹氭渶杩戜竴涓枃浠讹紝鐢ㄦ埛缁х画鎻愰棶鏃惰皟鐢?`/api/v1/files/{file_id}/ask`锛屽洖绛斾綔涓鸿亰澶╂秷鎭睍绀猴紝骞堕檮甯﹀紩鐢?chunks 鎽樿銆?- 宸插畬鎴?GitHub 鍒嗕韩鍓嶅熀纭€鏁寸悊锛氭柊澧?`README.md`锛屾洿鏂?`backend/.env.example` 鍜?`.gitignore`锛屾槑纭?API Key銆佷笂浼犳枃浠跺拰鏈湴鍚戦噺绱㈠紩涓嶅簲鎻愪氦銆?- 宸插畬鎴?v1.0.1 鍙戝竷鍓嶆鏌ワ細鍚庣缂栬瘧妫€鏌ャ€佸墠绔被鍨嬫鏌ャ€佹晱鎰熸枃浠跺拷鐣ユ鏌ュ拰鍩虹瀵嗛挜鎵弿鍧囧凡閫氳繃銆?- 宸插畬鎴愬寳杈癮gent UI 绠€鍖栦紭鍖栵細缁熶竴浜у搧鍛藉悕锛岃仛鐒︹€滃璇?+ 鏂囦欢涓績鈥濓紝闅愯棌褰撳墠鏆備笉瀹炵幇鐨?PPT 鍏ュ彛銆?- 宸插畬鎴?SQLite + SQLAlchemy 鏁版嵁搴撳熀纭€鎺ュ叆銆?- 宸叉柊澧?`files` 琛紝鐢ㄤ簬淇濆瓨鏂囦欢鍏冩暟鎹拰鍩虹澶勭悊鐘舵€併€?- 宸插畬鎴愪笂浼犳枃浠跺厓鏁版嵁鎸佷箙鍖栵細鏂囦欢淇濆瓨鍒?`backend/uploads/` 鍚庯紝浼氬悓姝ュ啓鍏?SQLite銆?- 宸叉柊澧?`GET /api/v1/files`锛岀敤浜庝粠鍚庣鎭㈠鏂囦欢鍒楄〃銆?- 宸插畬鎴愭枃浠朵腑蹇冨埛鏂版仮澶嶏細鍓嶇鏂囦欢涓績鎵撳紑鏃朵細浠庡悗绔鍙栫湡瀹炴枃浠跺垪琛ㄣ€?- 宸插畬鎴愭枃浠跺鐞嗙姸鎬佹寔涔呭寲锛氳В鏋愩€佸垏鍧椼€佸悜閲忓寲鍜屾湰鍦扮储寮曚繚瀛樻垚鍔熷悗锛屼細鏇存柊 SQLite 涓殑鏂囦欢澶勭悊鐘舵€併€?- 宸插畬鎴愭枃浠跺鐞嗗け璐ョ姸鎬佽褰曪細澶勭悊澶辫触鏃朵細灏介噺鍐欏叆 `failed` 鍜?`error_message`锛屽悓鏃朵繚鐣欏師濮嬮敊璇户缁繑鍥炵粰璋冪敤鏂广€?- 宸插畬鎴愯交閲?UI 涓板瘜锛氭枃浠朵腑蹇冩柊澧炵姸鎬佹瑙堬紝涓婁紶鍖恒€佺姸鎬佹爣绛俱€佺┖鐘舵€佸拰 RAG 寮曠敤鐗囨灞曠ず鏇撮潰鍚戠敤鎴枫€?- 宸插畬鎴愭枃浠朵腑蹇冭嚜鍔ㄥ鐞嗭細涓婁紶鍚庤嚜鍔ㄦ墽琛岃В鏋愩€佸垏鍧椼€乪mbedding 鍜屾湰鍦扮储寮曚繚瀛橈紝骞跺睍绀哄綋鍓嶅鐞嗛樁娈点€?- 宸叉柊澧?`DELETE /api/v1/files/{file_id}`锛氬垹闄ゅ搴斿師濮嬫枃浠躲€佹湰鍦?JSON 绱㈠紩鍜?SQLite 鏂囦欢璁板綍銆?- 宸插畬鎴愬墠绔湡瀹炲垹闄ら棴鐜細鍒犻櫎鍓嶇‘璁わ紝鎴愬姛鍚庡悓姝ユ枃浠跺垪琛紱鍒犻櫎褰撳墠浼氳瘽缁戝畾鏂囦欢鏃朵細瑙ｉ櫎 RAG 缁戝畾銆?- 宸叉柊澧?`chat_sessions` 琛紝鐢ㄤ簬淇濆瓨鑱婂ぉ浼氳瘽鍩虹淇℃伅鍜屽綋鍓嶄細璇濈粦瀹氭枃浠跺瓧娈点€?- 宸叉柊澧?`chat_messages` 琛紝鐢ㄤ簬淇濆瓨浼氳瘽娑堟伅姝ｆ枃鍜?RAG 寮曠敤绛夋秷鎭?metadata銆?- 宸叉柊澧?`ChatRepository`锛屾敮鎸佸垱寤轰細璇濄€佹煡璇細璇濆垪琛ㄣ€佹煡璇㈠崟涓細璇濄€佸垹闄や細璇濄€佸垱寤烘秷鎭拰鏌ヨ浼氳瘽娑堟伅銆?- 宸插畬鎴愬垹闄や細璇濇椂鍚屾鍒犻櫎鍏舵秷鎭殑 Repository 灞傚熀纭€鑳藉姏銆?- 宸叉柊澧?`ConversationService`锛岀敤浜庣紪鎺掍細璇濆垱寤恒€佸垪琛ㄦ煡璇€佹秷鎭煡璇€佷細璇濆垹闄ゅ拰鏂囦欢缁戝畾鏍￠獙銆?- 宸叉柊澧炰細璇?API锛歚GET /api/v1/chat/sessions`銆乣POST /api/v1/chat/sessions`銆乣DELETE /api/v1/chat/sessions/{session_id}`銆乣GET /api/v1/chat/sessions/{session_id}/messages`銆乣PATCH /api/v1/chat/sessions/{session_id}/file`銆?- 宸叉敮鎸佷細璇濈粦瀹氭垨瑙ｉ櫎鍗曚釜鏂囦欢锛岀粦瀹氭椂浼氭牎楠屾枃浠跺瓨鍦ㄤ笖鐘舵€佷负 `indexed`銆?- 宸叉敮鎸佸垹闄ゆ枃浠舵椂娓呴櫎鏁版嵁搴撲腑缁戝畾璇ユ枃浠剁殑浼氳瘽瀛楁銆?- 宸叉敮鎸?`POST /api/v1/chat` 鎼哄甫鍙€?`session_id` 鏃讹紝灏嗘櫘閫氳亰澶╃殑 user 鍜?assistant 娑堟伅鍐欏叆 `chat_messages`銆?- 宸叉敮鎸?`POST /api/v1/files/{file_id}/ask` 鎼哄甫鍙€?`session_id` 鏃讹紝灏?RAG 闂瓟鐨?user 鍜?assistant 娑堟伅鍐欏叆 `chat_messages`銆?- 宸叉敮鎸佸湪 RAG assistant 娑堟伅 `metadata_json` 涓繚瀛?`rag_file_id`銆乣rag_file_name`銆乣used_chunks` 鍜?`token_count`銆?- 宸插畬鎴愬墠绔細璇濇仮澶嶏細搴旂敤鍚姩鏃跺姞杞藉悗绔細璇濆垪琛紝鏃犱細璇濇椂鑷姩鍒涘缓榛樿鈥滄柊瀵硅瘽鈥濄€?- 宸插畬鎴愬墠绔巻鍙叉秷鎭仮澶嶏細鍒囨崲浼氳瘽鏃惰皟鐢ㄥ悗绔秷鎭?API锛屽苟灏嗘秷鎭仮澶嶅埌鑱婂ぉ绐楀彛銆?- 宸插畬鎴愬墠绔彂閫佹櫘閫氳亰澶╂惡甯﹀綋鍓?`session_id`锛屾秷鎭敱鍚庣鍐欏叆 `chat_messages`銆?- 宸插畬鎴愯亰澶╀晶 RAG 闂瓟鎼哄甫褰撳墠 `session_id`锛孯AG 鍥炵瓟鍜屽紩鐢ㄧ墖娈电敱鍚庣鍐欏叆娑堟伅 metadata銆?- 宸插畬鎴愯亰澶╀晶鏂囦欢 indexed 鍚庣粦瀹氬綋鍓嶄細璇濇枃浠讹紝鍒锋柊鍚庡彲鏍规嵁 `bound_file_id` 鎭㈠褰撳墠 RAG 鏂囦欢鎻愮ず銆?- 宸插畬鎴愬墠绔垹闄や細璇濊皟鐢ㄥ悗绔?API锛屽苟鍚屾绉婚櫎鏈湴浼氳瘽鍜屾秷鎭紦瀛樸€?- 宸插畬鎴愯嚜鍔ㄤ細璇濇爣棰橈細褰撴爣棰樹粛涓洪粯璁も€滄柊瀵硅瘽鈥濇椂锛屾櫘閫氳亰澶╂垨 RAG 闂瓟鎴愬姛鍚庝細浣跨敤鐢ㄦ埛绗竴鏉℃秷鎭敓鎴愮畝鐭爣棰樸€?- 鑷姩鏍囬涓嶈皟鐢ㄩ澶?LLM锛屼粎浣跨敤鏈湴瑙勫垯锛氬幓闄ゆ崲琛屽拰澶氫綑绌烘牸锛屾渶闀?24 涓瓧绗︼紝瓒呭嚭杩藉姞 `...`銆?- 宸蹭慨姝ｆ櫘閫氳亰澶╃郴缁熸彁绀猴細AI 韬唤缁熶竴涓衡€滃寳杈癮gent鈥濓紝涓嶅啀鑷О WorkBuddy锛屼篃涓嶅０鏄庢湭瀹炵幇鐨勪紒涓氱郴缁熻兘鍔涖€?- 宸插鍔犲墠绔爣棰樹箰瑙傛洿鏂帮細鍙戦€佹秷鎭悗渚ц竟鏍忎細绔嬪嵆鏄剧ず鏈湴鐢熸垚鏍囬锛屽悗绔粛璐熻矗鏈€缁堟寔涔呭寲銆?- 宸插畬鎴愭櫘閫氳亰澶╁熀纭€涓婁笅鏂囩獥鍙ｏ細`POST /api/v1/chat` 鎼哄甫 `session_id` 鏃讹紝鍚庣浼氳鍙栧綋鍓嶄細璇濇渶杩?6 鏉″巻鍙叉秷鎭苟浼犲叆 LLM銆?- 宸插鍔犱笂涓嬫枃鎴柇绛栫暐锛氭瘡鏉″巻鍙叉秷鎭渶澶氫繚鐣?1200 涓瓧绗︼紝瓒呭嚭鍚庤拷鍔?`...`銆?- 宸插畬鎴?RAG 鏂囦欢闂瓟杩炵画杩介棶鍩虹鑳藉姏锛歚POST /api/v1/files/{file_id}/ask` 鎼哄甫 `session_id` 鏃讹紝鍚庣浼氳鍙栧綋鍓嶄細璇濇渶杩?6 鏉″巻鍙叉秷鎭紝骞朵綔涓衡€滄渶杩戝璇濅笂涓嬫枃鈥濆姞鍏?RAG prompt銆?- RAG 妫€绱粛鍩轰簬褰撳墠鐢ㄦ埛闂鎵ц锛屼笉鏀瑰彉 Retrieval銆乂ectorStore 鍜?Embedding 涓婚摼璺€?- 鏃?`session_id` 鐨勬櫘閫氳亰澶╁拰 RAG 闂瓟浠嶄繚鎸佸崟杞皟鐢ㄣ€?- 宸插畬鎴?GitHub Safety Check锛氱‘璁?`backend/.env`銆乣backend/uploads/`銆乣backend/vector_store/`銆乣backend/data/`銆乣.claude/` 绛夋晱鎰熻矾寰勬湭琚?Git 璺熻釜锛屽苟琛ュ厖鍙戝竷鍖呫€佸帇缂╁寘鍜?SQLite 鏂囦欢蹇界暐瑙勫垯銆?- 宸叉柊澧?Windows 鏈湴璇曡繍琛岃剼鏈細
   - `scripts/check-local.ps1`
   - `scripts/start-local.ps1`
   - `scripts/stop-local.ps1`
-- 本地脚本固定使用后端端口 `8000` 和前端端口 `5173`，停止脚本只处理监听固定端口的进程，不按进程名批量结束 Python 或 Node。
-- 已同步 README：当前功能、SQLite 持久化、本地脚本、Mock / 真实 API 配置、文件问答流程和安全边界已与当前代码状态对齐。
-- 已修正 `backend/.env.example` 中的旧命名，`APP_NAME` 不再使用 WorkBuddy。
-- 已新增 `docs/local_trial_guide.md`，用于指导可信任试用者在 Windows 本地运行项目。
-- 已新增 `docs/troubleshooting.md`，覆盖端口占用、前端打不开、后端不可用、`Failed to fetch`、API Key、Embedding、文件问答和临时公网地址等常见问题。
+- 鏈湴鑴氭湰鍥哄畾浣跨敤鍚庣绔彛 `8000` 鍜屽墠绔鍙?`5173`锛屽仠姝㈣剼鏈彧澶勭悊鐩戝惉鍥哄畾绔彛鐨勮繘绋嬶紝涓嶆寜杩涚▼鍚嶆壒閲忕粨鏉?Python 鎴?Node銆?- 宸插悓姝?README锛氬綋鍓嶅姛鑳姐€丼QLite 鎸佷箙鍖栥€佹湰鍦拌剼鏈€丮ock / 鐪熷疄 API 閰嶇疆銆佹枃浠堕棶绛旀祦绋嬪拰瀹夊叏杈圭晫宸蹭笌褰撳墠浠ｇ爜鐘舵€佸榻愩€?- 宸蹭慨姝?`backend/.env.example` 涓殑鏃у懡鍚嶏紝`APP_NAME` 涓嶅啀浣跨敤 WorkBuddy銆?- 宸叉柊澧?`docs/local_trial_guide.md`锛岀敤浜庢寚瀵煎彲淇′换璇曠敤鑰呭湪 Windows 鏈湴杩愯椤圭洰銆?- 宸叉柊澧?`docs/troubleshooting.md`锛岃鐩栫鍙ｅ崰鐢ㄣ€佸墠绔墦涓嶅紑銆佸悗绔笉鍙敤銆乣Failed to fetch`銆丄PI Key銆丒mbedding銆佹枃浠堕棶绛斿拰涓存椂鍏綉鍦板潃绛夊父瑙侀棶棰樸€?
+## 2. 褰撳墠 v1.0 鐩爣
 
-## 2. 当前 v1.0 目标
+v1.0 鐩爣鏄瀯寤轰竴涓嫭绔嬬綉椤电増 AI 鍔╂墜銆?
+鏍稿績鑳藉姏锛?
+- AI 鑱婂ぉ銆?- 鏂囦欢涓婁紶銆?- RAG 鐭ヨ瘑闂瓟銆?- AI 鏁版嵁鍒嗘瀽瑙勫垝鑳藉姏銆?
+鏀拺鑳藉姏锛?
+- LLM API 璋冪敤銆?- 鏂囨。瑙ｆ瀽銆?- Embedding銆?- 鍚戦噺妫€绱€?
+褰撳墠 v1.0 涓嶅寘鍚細
 
-v1.0 目标是构建一个独立网页版 AI 助手。
+- 閽夐拤銆?- 浼佷笟鐧诲綍銆?- 浼佷笟鏉冮檺銆?- PPT 鐢熸垚銆?- 澶氱鎴枫€?- 寰湇鍔°€?- 澶嶆潅浠诲姟闃熷垪銆?
+## 3. 宸插畬鎴愭ā鍧?
+### 3.1 鍓嶇鍩虹鍘熷瀷
 
-核心能力：
+鐩綍锛歚frontend/`
 
-- AI 聊天。
-- 文件上传。
-- RAG 知识问答。
-- AI 数据分析规划能力。
+宸插畬鎴愶細
 
-支撑能力：
+- React + Vite 鍓嶇宸ョ▼銆?- 鍩虹椤甸潰甯冨眬銆?- 鐧诲綍椤?Mock銆?- 渚ц竟鏍忋€?- 鑱婂ぉ鍖恒€?- 娑堟伅杈撳叆妗嗐€?- 娑堟伅娓叉煋缁勪欢銆?- 鏂囦欢涓績 UI銆?- 鏂囦欢涓績鐘舵€佹瑙堝尯銆?- 鏂囦欢涓績涓婁紶宸ヤ綔鍙板紡缁勪欢銆?- 鏂囦欢涓績涓婁紶鍚庤嚜鍔ㄨВ鏋愩€佸垏鍧椼€佸悜閲忓寲鍜屼繚瀛樼储寮曘€?- 鏂囦欢鑷姩澶勭悊闃舵涓庡け璐ュ師鍥犲睍绀恒€?- 鏂囦欢鐪熷疄鍒犻櫎涓庡垹闄ょ‘璁ゃ€?- 鏂囦欢瑙ｆ瀽瑙﹀彂鍏ュ彛銆?- 鏂囦欢瑙ｆ瀽缁撴灉棰勮銆?- 鏂囦欢鍒囧潡瑙﹀彂鍏ュ彛銆?- chunk 鏁伴噺鍜?chunk 棰勮灞曠ず銆?- 鏂囦欢鍚戦噺鍖栬Е鍙戝叆鍙ｃ€?- embedding 鏁伴噺銆佺淮搴﹀拰鍚戦噺棰勮灞曠ず銆?- 鑱婂ぉ杈撳叆鍖烘枃浠朵笂浼犲叆鍙ｃ€?- 鑱婂ぉ渚ф枃浠惰嚜鍔ㄥ鐞嗙姸鎬佸睍绀恒€?- 鑱婂ぉ渚ф枃浠惰嚜鍔ㄦ湰鍦扮储寮曚繚瀛樸€?- 鑱婂ぉ渚ф渶杩?indexed 鏂囦欢缁戝畾銆?- 鑱婂ぉ娑堟伅娴佷腑鐨?RAG 鍥炵瓟灞曠ず銆?- RAG 鍥炵瓟寮曠敤 chunks 鎽樿灞曠ず銆?- RAG 鍥炵瓟鍙傝€冪墖娈靛睍绀轰紭鍖栥€?- 鏂囦欢涓績鏈湴绱㈠紩淇濆瓨瑙﹀彂鍏ュ彛銆?- indexed 鐘舵€佸拰鏈湴绱㈠紩璺緞鎽樿灞曠ず銆?- 鏂囦欢涓績妫€绱㈡祴璇曞叆鍙ｃ€?- query銆乻core 鍜?top_k chunk 鍐呭灞曠ず銆?- 鍖楄景agent 鍝佺墝鐣岄潰銆?- Zustand 鐘舵€佺鐞嗐€?- 鏈湴 Mock API锛歚frontend/src/api/mock.ts`銆?- 鑱婂ぉ API Client锛歚frontend/src/api/chatApi.ts`銆?- 鏂囦欢涓婁紶 API Client锛歚frontend/src/api/fileApi.ts`銆?
+褰撳墠闄愬埗锛?
+- 鍓嶇鑱婂ぉ宸茬粡璋冪敤鍚庣 `/api/v1/chat`銆?- 鍓嶇鏂囦欢涓婁紶宸茬粡璋冪敤鍚庣 `/api/v1/files`銆?- 鏂囦欢涓績涓庤亰澶╀晶涓婁紶鍧囦細鑷姩涓茶仈瀹屾暣鏂囦欢澶勭悊 API銆?- 鍓嶇鏂囦欢瑙ｆ瀽宸茬粡璋冪敤鍚庣 `/api/v1/files/{file_id}/parse`銆?- 鍓嶇鏂囦欢鍒囧潡宸茬粡璋冪敤鍚庣 `/api/v1/files/{file_id}/chunks`銆?- 鍓嶇鏂囦欢鍚戦噺鍖栧凡缁忚皟鐢ㄥ悗绔?`/api/v1/files/{file_id}/embeddings`銆?- 鍓嶇鏂囦欢鏈湴绱㈠紩淇濆瓨宸茬粡璋冪敤鍚庣 `/api/v1/files/{file_id}/vector-store`銆?- 鍓嶇鏂囦欢妫€绱㈡祴璇曞凡缁忚皟鐢ㄥ悗绔?`/api/v1/files/{file_id}/retrieve`銆?- 鑱婂ぉ渚ф枃浠朵笂浼犱細鑷姩涓茶仈 `/api/v1/files`銆乣/api/v1/files/{file_id}/parse`銆乣/api/v1/files/{file_id}/chunks`銆乣/api/v1/files/{file_id}/embeddings` 鍜?`/api/v1/files/{file_id}/vector-store`銆?- 鑱婂ぉ渚у瓨鍦ㄦ渶杩?indexed 鏂囦欢鏃讹紝鐢ㄦ埛鍙戦€佹秷鎭細璋冪敤 `/api/v1/files/{file_id}/ask`锛涙病鏈夊綋鍓嶆枃浠舵椂浠嶈皟鐢?`/api/v1/chat`銆?- 鍓嶇浼氳瘽鍜屽巻鍙叉秷鎭粛浣跨敤 Mock / 鍓嶇鍐呭瓨鐘舵€併€?- 鏂囦欢涓績鍒濆鏂囦欢鍒楄〃宸插紑濮嬩粠鍚庣 `GET /api/v1/files` 鎭㈠銆?- 鍓嶇鏂囦欢鍒犻櫎宸茬粡璋冪敤鍚庣 `DELETE /api/v1/files/{file_id}`銆?- 瑙ｆ瀽鏂囨湰棰勮銆佸瓧绗︽暟鍜屽悇澶勭悊闃舵鎽樿鍙粠 SQLite 鎭㈠锛沜hunk 涓?embedding 鐨勮缁嗛瑙堜粛鍙瓨鍦ㄤ簬褰撳墠鍓嶇鐘舵€佹垨鏈湴 JSON 绱㈠紩涓€?- chunk 涓?embedding 鍐呭宸茬粡鍙互鍐欏叆鏈湴 JSON 绱㈠紩锛岃В鏋愩€佸垏鍧椼€乪mbedding 鍜?indexed 鐘舵€佷篃鍙互浠?SQLite 鎭㈠銆?
+### 3.2 鍚庣鍩虹鑱婂ぉ妯″潡
 
-- LLM API 调用。
-- 文档解析。
-- Embedding。
-- 向量检索。
+鐩綍锛歚backend/`
 
-当前 v1.0 不包含：
+宸插畬鎴愶細
 
-- 钉钉。
-- 企业登录。
-- 企业权限。
-- PPT 生成。
-- 多租户。
-- 微服务。
-- 复杂任务队列。
-
-## 3. 已完成模块
-
-### 3.1 前端基础原型
-
-目录：`frontend/`
-
-已完成：
-
-- React + Vite 前端工程。
-- 基础页面布局。
-- 登录页 Mock。
-- 侧边栏。
-- 聊天区。
-- 消息输入框。
-- 消息渲染组件。
-- 文件中心 UI。
-- 文件中心状态概览区。
-- 文件中心上传工作台式组件。
-- 文件中心上传后自动解析、切块、向量化和保存索引。
-- 文件自动处理阶段与失败原因展示。
-- 文件真实删除与删除确认。
-- 文件解析触发入口。
-- 文件解析结果预览。
-- 文件切块触发入口。
-- chunk 数量和 chunk 预览展示。
-- 文件向量化触发入口。
-- embedding 数量、维度和向量预览展示。
-- 聊天输入区文件上传入口。
-- 聊天侧文件自动处理状态展示。
-- 聊天侧文件自动本地索引保存。
-- 聊天侧最近 indexed 文件绑定。
-- 聊天消息流中的 RAG 回答展示。
-- RAG 回答引用 chunks 摘要展示。
-- RAG 回答参考片段展示优化。
-- 文件中心本地索引保存触发入口。
-- indexed 状态和本地索引路径摘要展示。
-- 文件中心检索测试入口。
-- query、score 和 top_k chunk 内容展示。
-- 北辰agent 品牌界面。
-- Zustand 状态管理。
-- 本地 Mock API：`frontend/src/api/mock.ts`。
-- 聊天 API Client：`frontend/src/api/chatApi.ts`。
-- 文件上传 API Client：`frontend/src/api/fileApi.ts`。
-
-当前限制：
-
-- 前端聊天已经调用后端 `/api/v1/chat`。
-- 前端文件上传已经调用后端 `/api/v1/files`。
-- 文件中心与聊天侧上传均会自动串联完整文件处理 API。
-- 前端文件解析已经调用后端 `/api/v1/files/{file_id}/parse`。
-- 前端文件切块已经调用后端 `/api/v1/files/{file_id}/chunks`。
-- 前端文件向量化已经调用后端 `/api/v1/files/{file_id}/embeddings`。
-- 前端文件本地索引保存已经调用后端 `/api/v1/files/{file_id}/vector-store`。
-- 前端文件检索测试已经调用后端 `/api/v1/files/{file_id}/retrieve`。
-- 聊天侧文件上传会自动串联 `/api/v1/files`、`/api/v1/files/{file_id}/parse`、`/api/v1/files/{file_id}/chunks`、`/api/v1/files/{file_id}/embeddings` 和 `/api/v1/files/{file_id}/vector-store`。
-- 聊天侧存在最近 indexed 文件时，用户发送消息会调用 `/api/v1/files/{file_id}/ask`；没有当前文件时仍调用 `/api/v1/chat`。
-- 前端会话和历史消息仍使用 Mock / 前端内存状态。
-- 文件中心初始文件列表已开始从后端 `GET /api/v1/files` 恢复。
-- 前端文件删除已经调用后端 `DELETE /api/v1/files/{file_id}`。
-- 解析文本预览、字符数和各处理阶段摘要可从 SQLite 恢复；chunk 与 embedding 的详细预览仍只存在于当前前端状态或本地 JSON 索引中。
-- chunk 与 embedding 内容已经可以写入本地 JSON 索引，解析、切块、embedding 和 indexed 状态也可以从 SQLite 恢复。
-
-### 3.2 后端基础聊天模块
-
-目录：`backend/`
-
-已完成：
-
-- FastAPI 后端工程骨架。
-- 健康检查接口：`GET /health`。
-- 基础聊天接口：
-  - `POST /chat`
+- FastAPI 鍚庣宸ョ▼楠ㄦ灦銆?- 鍋ュ悍妫€鏌ユ帴鍙ｏ細`GET /health`銆?- 鍩虹鑱婂ぉ鎺ュ彛锛?  - `POST /chat`
   - `POST /api/v1/chat`
-- 聊天请求和响应 Schema。
-- `ChatService` 聊天业务编排。
-- `LLMService` LLM Provider 选择。
-- `LLMProvider` 抽象接口。
-- `MockLLMProvider` 本地开发模型。
-- `OpenAIProvider` OpenAI-compatible 调用实现。
-- 统一成功响应工具。
-- 应用级错误类型。
-- LLM 配置错误和调用错误的统一 JSON 响应。
-- `backend/.env` 本地敏感配置读取。
-- `backend/.env.example` 示例配置。
+- 鑱婂ぉ璇锋眰鍜屽搷搴?Schema銆?- `ChatService` 鑱婂ぉ涓氬姟缂栨帓銆?- `LLMService` LLM Provider 閫夋嫨銆?- `LLMProvider` 鎶借薄鎺ュ彛銆?- `MockLLMProvider` 鏈湴寮€鍙戞ā鍨嬨€?- `OpenAIProvider` OpenAI-compatible 璋冪敤瀹炵幇銆?- 缁熶竴鎴愬姛鍝嶅簲宸ュ叿銆?- 搴旂敤绾ч敊璇被鍨嬨€?- LLM 閰嶇疆閿欒鍜岃皟鐢ㄩ敊璇殑缁熶竴 JSON 鍝嶅簲銆?- `backend/.env` 鏈湴鏁忔劅閰嶇疆璇诲彇銆?- `backend/.env.example` 绀轰緥閰嶇疆銆?
+褰撳墠闄愬埗锛?
+- `/chat` 鏄复鏃跺吋瀹硅矾寰勶紝姝ｅ紡涓氬姟璺緞搴斾紭鍏堜娇鐢?`/api/v1/chat`銆?- LLM 閿欒澶勭悊宸茶鐩?v0.2 鐨勯厤缃敊璇拰 Provider 璋冪敤閿欒锛屼絾灏氭湭瑕嗙洊鍏ㄥ眬鏈煡寮傚父銆?- API 灞傚綋鍓嶇洿鎺ュ疄渚嬪寲 Service锛屽悗缁渶瑕佸紩鍏ヤ緷璧栨敞鍏ャ€?- 鐩墠浠ユ墜鍔ㄩ獙璇佸拰绫诲瀷妫€鏌ヤ负涓伙紝灏氭湭寤虹珛鑷姩鍖栨祴璇曠洰褰曘€?
+### 3.3 鍚庣鍩虹鏂囦欢妯″潡
 
-当前限制：
+鐩綍锛歚backend/`
 
-- `/chat` 是临时兼容路径，正式业务路径应优先使用 `/api/v1/chat`。
-- LLM 错误处理已覆盖 v0.2 的配置错误和 Provider 调用错误，但尚未覆盖全局未知异常。
-- API 层当前直接实例化 Service，后续需要引入依赖注入。
-- 目前以手动验证和类型检查为主，尚未建立自动化测试目录。
+宸插畬鎴愶細
 
-### 3.3 后端基础文件模块
-
-目录：`backend/`
-
-已完成：
-
-- 文件上传接口：`POST /api/v1/files`。
-- `UploadedFileResponse` 文件上传响应 Schema。
-- `FileService` 文件上传业务边界。
-- 上传文件扩展名校验。
-- 上传文件大小限制。
-- 上传文件保存到本地 `backend/uploads/`。
-- 文件相关错误类型：
-  - `FileValidationError`
+- 鏂囦欢涓婁紶鎺ュ彛锛歚POST /api/v1/files`銆?- `UploadedFileResponse` 鏂囦欢涓婁紶鍝嶅簲 Schema銆?- `FileService` 鏂囦欢涓婁紶涓氬姟杈圭晫銆?- 涓婁紶鏂囦欢鎵╁睍鍚嶆牎楠屻€?- 涓婁紶鏂囦欢澶у皬闄愬埗銆?- 涓婁紶鏂囦欢淇濆瓨鍒版湰鍦?`backend/uploads/`銆?- 鏂囦欢鐩稿叧閿欒绫诲瀷锛?  - `FileValidationError`
   - `FileStorageError`
-- 上传配置：
-  - `UPLOAD_DIR`
+- 涓婁紶閰嶇疆锛?  - `UPLOAD_DIR`
   - `MAX_UPLOAD_SIZE_MB`
   - `ALLOWED_UPLOAD_EXTENSIONS`
-- 文件上传依赖：`python-multipart`。
-- 文件解析接口：`POST /api/v1/files/{file_id}/parse`。
-- `DocumentParserService` 文档解析业务边界。
-- TXT 文本解析。
-- DOCX 段落和基础表格文本解析。
-- DOCX 表格行列结构化文本输出。
-- DOCX 嵌套表格文本解析。
-- 可复制文本型 PDF 解析实现。
-- 文件切块接口：`POST /api/v1/files/{file_id}/chunks`。
-- `ChunkService` 文本切块业务边界。
-- 字符数切块策略：`chunk_size=800`，`chunk_overlap=120`。
-- chunk 预览响应字段：
-  - `chunk_id`
+- 鏂囦欢涓婁紶渚濊禆锛歚python-multipart`銆?- 鏂囦欢瑙ｆ瀽鎺ュ彛锛歚POST /api/v1/files/{file_id}/parse`銆?- `DocumentParserService` 鏂囨。瑙ｆ瀽涓氬姟杈圭晫銆?- TXT 鏂囨湰瑙ｆ瀽銆?- DOCX 娈佃惤鍜屽熀纭€琛ㄦ牸鏂囨湰瑙ｆ瀽銆?- DOCX 琛ㄦ牸琛屽垪缁撴瀯鍖栨枃鏈緭鍑恒€?- DOCX 宓屽琛ㄦ牸鏂囨湰瑙ｆ瀽銆?- 鍙鍒舵枃鏈瀷 PDF 瑙ｆ瀽瀹炵幇銆?- 鏂囦欢鍒囧潡鎺ュ彛锛歚POST /api/v1/files/{file_id}/chunks`銆?- `ChunkService` 鏂囨湰鍒囧潡涓氬姟杈圭晫銆?- 瀛楃鏁板垏鍧楃瓥鐣ワ細`chunk_size=800`锛宍chunk_overlap=120`銆?- chunk 棰勮鍝嶅簲瀛楁锛?  - `chunk_id`
   - `file_id`
   - `chunk_index`
   - `content`
   - `char_count`
-- 文件向量化接口：`POST /api/v1/files/{file_id}/embeddings`。
-- `EmbeddingService` embedding 业务边界。
-- `EmbeddingProvider` 抽象接口。
-- `MockEmbeddingProvider` 稳定 mock embedding 实现。
-- mock embedding 默认维度：`16`。
-- embedding 响应字段：
-  - `embedding_count`
+- 鏂囦欢鍚戦噺鍖栨帴鍙ｏ細`POST /api/v1/files/{file_id}/embeddings`銆?- `EmbeddingService` embedding 涓氬姟杈圭晫銆?- `EmbeddingProvider` 鎶借薄鎺ュ彛銆?- `MockEmbeddingProvider` 绋冲畾 mock embedding 瀹炵幇銆?- mock embedding 榛樿缁村害锛歚16`銆?- embedding 鍝嶅簲瀛楁锛?  - `embedding_count`
   - `embedding_dimension`
   - `embedding_preview`
-- 本地向量索引接口：
-  - `POST /api/v1/files/{file_id}/vector-store`
+- 鏈湴鍚戦噺绱㈠紩鎺ュ彛锛?  - `POST /api/v1/files/{file_id}/vector-store`
   - `GET /api/v1/files/{file_id}/vector-store`
-- `VectorStoreService` 本地向量存储业务边界。
-- 本地索引目录：`backend/vector_store/`。
-- 本地索引文件结构包含：
-  - `file_id`
+- `VectorStoreService` 鏈湴鍚戦噺瀛樺偍涓氬姟杈圭晫銆?- 鏈湴绱㈠紩鐩綍锛歚backend/vector_store/`銆?- 鏈湴绱㈠紩鏂囦欢缁撴瀯鍖呭惈锛?  - `file_id`
   - `chunk_id`
   - `chunk_index`
   - `content`
@@ -259,9 +92,7 @@ v1.0 目标是构建一个独立网页版 AI 助手。
   - `embedding_dimension`
   - `embedding_model`
   - `created_at`
-- 文件检索接口：`POST /api/v1/files/{file_id}/retrieve`。
-- `RetrievalService` 本地检索业务边界。
-- 检索结果响应字段包含：
+- 鏂囦欢妫€绱㈡帴鍙ｏ細`POST /api/v1/files/{file_id}/retrieve`銆?- `RetrievalService` 鏈湴妫€绱笟鍔¤竟鐣屻€?- 妫€绱㈢粨鏋滃搷搴斿瓧娈靛寘鍚細
   - `query`
   - `top_k`
   - `result_count`
@@ -269,170 +100,58 @@ v1.0 目标是构建一个独立网页版 AI 助手。
   - `results[].chunk_index`
   - `results[].content`
   - `results[].score`
-- 文档解析响应字段：
-  - `file_id`
+- 鏂囨。瑙ｆ瀽鍝嶅簲瀛楁锛?  - `file_id`
   - `status`
   - `extension`
   - `text_preview`
   - `char_count`
-- 文档解析相关错误类型：
-  - `DocumentNotFoundError`
+- 鏂囨。瑙ｆ瀽鐩稿叧閿欒绫诲瀷锛?  - `DocumentNotFoundError`
   - `DocumentParseError`
-- 文档解析依赖：
-  - `python-docx`
+- 鏂囨。瑙ｆ瀽渚濊禆锛?  - `python-docx`
   - `pypdf`
 
-当前限制：
+褰撳墠闄愬埗锛?
+- 鏂囦欢鍏冩暟鎹凡鍦ㄤ笂浼犳垚鍔熷悗鍐欏叆 SQLite銆?- 鏈嶅姟閲嶅惎鎴栭〉闈㈠埛鏂板悗锛屽墠绔枃浠朵腑蹇冨彲浠ヤ粠鍚庣鎭㈠鏂囦欢鍩虹鍒楄〃銆?- 鏂囨。瑙ｆ瀽鐘舵€併€佹枃鏈瑙堝拰瀛楃鏁板凡鍐欏叆鏁版嵁搴撱€?- 鏂囨湰鍒囧潡鏁伴噺宸插啓鍏ユ暟鎹簱銆?- embedding 鏁伴噺銆佺淮搴﹀拰妯″瀷宸插啓鍏ユ暟鎹簱銆?- 鏈湴绱㈠紩鐘舵€佸拰绱㈠紩璺緞宸插啓鍏ユ暟鎹簱銆?- 鏆備笉鏀寔鏂囦欢涓嬭浇锛涙枃浠跺垹闄ゅ凡鏀寔鍘熷鏂囦欢銆丣SON 绱㈠紩鍜屾暟鎹簱璁板綍鐨勫悓姝ユ竻鐞嗐€?- 鏆備笉鏀寔 OCR銆佺梾姣掓壂鎻忋€佸璞″瓨鍌ㄣ€?- PDF 瑙ｆ瀽浠呮敮鎸佸彲澶嶅埗鏂囨湰鍨?PDF锛屼笉鏀寔鎵弿浠?OCR銆?- chunk 鍜?embedding 缁撴灉宸茬粡鍙互鍐欏叆鏈湴 JSON VectorStore锛屼絾灏氭湭鍐欏叆鏁版嵁搴撴垨 pgvector銆?- 褰撳墠鍒囧潡绛栫暐鏄瓧绗︽暟鍒囧潡锛屼笉鏄?tokenizer-aware 鎴?semantic chunk銆?- embedding 缁撴灉灏氭湭鍐欏叆鍚戦噺鏁版嵁搴撱€?- 褰撳墠鍙娇鐢?mock 鎴?OpenAI-compatible embedding锛沵ock 妯″紡浠嶄笉浠ｈ〃鐪熷疄璇箟銆?
+### 3.4 椤圭洰鏂囨。
 
-- 文件元数据已在上传成功后写入 SQLite。
-- 服务重启或页面刷新后，前端文件中心可以从后端恢复文件基础列表。
-- 文档解析状态、文本预览和字符数已写入数据库。
-- 文本切块数量已写入数据库。
-- embedding 数量、维度和模型已写入数据库。
-- 本地索引状态和索引路径已写入数据库。
-- 暂不支持文件下载；文件删除已支持原始文件、JSON 索引和数据库记录的同步清理。
-- 暂不支持 OCR、病毒扫描、对象存储。
-- PDF 解析仅支持可复制文本型 PDF，不支持扫描件 OCR。
-- chunk 和 embedding 结果已经可以写入本地 JSON VectorStore，但尚未写入数据库或 pgvector。
-- 当前切块策略是字符数切块，不是 tokenizer-aware 或 semantic chunk。
-- embedding 结果尚未写入向量数据库。
-- 当前可使用 mock 或 OpenAI-compatible embedding；mock 模式仍不代表真实语义。
+鐩綍锛歚docs/`
 
-### 3.4 项目文档
+宸插畬鎴愶細
 
-目录：`docs/`
+- 鏋舵瀯璇勫鏂囨。銆?- 寮€鍙戣鍒掓枃妗ｃ€?- 鍚庣璁捐鏂囨。銆?- 鑱婂ぉ妯″潡璇存槑鏂囨。銆?- v0.2 LLM 鑱婂ぉ闆嗘垚璁″垝銆?- v0.2 鑱婂ぉ闆嗘垚鎶ュ憡銆?- v0.2.1 DeepSeek 閰嶇疆鎶ュ憡銆?- v0.3 鏂囦欢涓婁紶璁″垝銆?- v0.3 鏂囦欢涓婁紶鎶ュ憡銆?- v0.4 鏂囨。瑙ｆ瀽璁″垝銆?- v0.4 鏂囨。瑙ｆ瀽鎶ュ憡銆?- v0.4.1 DOCX 琛ㄦ牸瑙ｆ瀽澧炲己鎶ュ憡銆?- v0.5 鏂囨湰鍒囧潡璁″垝銆?- v0.5 鏂囨湰鍒囧潡鎶ュ憡銆?- v0.6 Embedding 鎶借薄涓庤皟鐢ㄨ鍒掋€?- v0.6 Embedding 鎶借薄涓庤皟鐢ㄦ姤鍛娿€?- v0.6.1 鑱婂ぉ渚ф枃浠舵帴鍏ヤ綋楠屼紭鍖栬鍒掋€?- v0.6.1 鑱婂ぉ渚ф枃浠舵帴鍏ヤ綋楠屼紭鍖栨姤鍛娿€?- v0.7 VectorStore 鍚戦噺瀛樺偍璁″垝銆?- v0.7 VectorStore 鍚戦噺瀛樺偍鎶ュ憡銆?- v0.8 Retrieval 妫€绱㈡湇鍔¤鍒掋€?- v0.8 Retrieval 妫€绱㈡湇鍔℃姤鍛娿€?- v0.4.2 鍖楄景agent UI 绠€鍖栦紭鍖栥€?- v1.0 璺嚎鍥俱€?- v1.1.4 鏂囦欢鐢熷懡鍛ㄦ湡闂幆鎶ュ憡銆?- 鏂囨。鍚屾瀹℃煡鎶ュ憡銆?
+褰撳墠闄愬埗锛?
+- 閮ㄥ垎鍘嗗彶鏂囨。浠嶆湭鍚屾鍒板綋鍓?v1.0 鑼冨洿銆?- 鍚庣画闇€瑕佺户缁悓姝ユ灦鏋勩€佹ā鍧椼€丄PI 鍜屾暟鎹簱璁捐鏂囨。銆?
+## 4. 姝ｅ湪寮€鍙戞ā鍧?
+褰撳墠姝ｅ湪鎺ㄨ繘鐨勬ā鍧楋細
 
-已完成：
+- v1.4 Release Readiness 鏈湴璇曡繍琛屾暣鐞嗐€?- README銆乣.env.example`銆佹湰鍦拌瘯杩愯鎸囧崡鍜屽父瑙侀棶棰樻枃妗ｅ悓姝ャ€?
+涓嬩竴姝ユ渶閫傚悎鎺ㄨ繘锛?
+- 瀵?v1.4 鏂囨。鍜岃剼鏈繘琛屾渶缁堟牳瀵广€?- 鍚庣画杩涘叆 GitHub 鍙戝竷鍓嶆敹灏炬鏌ユ垨姝ｅ紡閮ㄧ讲鍑嗗瑙勫垝銆?
+## 5. 鏈紑濮嬫ā鍧?
+褰撳墠灏氭湭寮€濮嬪疄鐜帮細
 
-- 架构评审文档。
-- 开发计划文档。
-- 后端设计文档。
-- 聊天模块说明文档。
-- v0.2 LLM 聊天集成计划。
-- v0.2 聊天集成报告。
-- v0.2.1 DeepSeek 配置报告。
-- v0.3 文件上传计划。
-- v0.3 文件上传报告。
-- v0.4 文档解析计划。
-- v0.4 文档解析报告。
-- v0.4.1 DOCX 表格解析增强报告。
-- v0.5 文本切块计划。
-- v0.5 文本切块报告。
-- v0.6 Embedding 抽象与调用计划。
-- v0.6 Embedding 抽象与调用报告。
-- v0.6.1 聊天侧文件接入体验优化计划。
-- v0.6.1 聊天侧文件接入体验优化报告。
-- v0.7 VectorStore 向量存储计划。
-- v0.7 VectorStore 向量存储报告。
-- v0.8 Retrieval 检索服务计划。
-- v0.8 Retrieval 检索服务报告。
-- v0.4.2 北辰agent UI 简化优化。
-- v1.0 路线图。
-- v1.1.4 文件生命周期闭环报告。
-- 文档同步审查报告。
+- 浼氳瘽鎽樿銆?- 鍘嗗彶娑堟伅璇箟妫€绱€?- 鏁版嵁搴撹縼绉汇€?- 鍏ㄥ眬寮傚父澶勭悊銆?- 璇锋眰鏃ュ織鍜?request id銆?- AI 鏁版嵁鍒嗘瀽鏈嶅姟銆?- 缁撴瀯鍖栨暟鎹笂浼犮€?- 鑷姩鍥捐〃鐢熸垚銆?- 鏁版嵁鑷劧璇█瑙ｉ噴銆?
+## 6. 褰撳墠鎶€鏈爤
 
-当前限制：
+### 6.1 宸茶惤鍦版妧鏈爤
 
-- 部分历史文档仍未同步到当前 v1.0 范围。
-- 后续需要继续同步架构、模块、API 和数据库设计文档。
+鍓嶇锛?
+- React 18銆?- TypeScript銆?- Vite銆?- Ant Design 5銆?- Zustand銆?- dayjs銆?
+鍚庣锛?
+- Python銆?- FastAPI銆?- Pydantic銆?- python-dotenv銆?- python-multipart銆?- python-docx銆?- pypdf銆?- SQLite銆?- SQLAlchemy銆?- OpenAI-compatible HTTP 璋冪敤銆?- 鏈湴 Mock LLM Provider銆?- 鏈湴鏂囦欢瀛樺偍銆?
+宸ョ▼锛?
+- Git銆?- npm銆?- TypeScript 绫诲瀷妫€鏌ャ€?- Python 缂栬瘧妫€鏌ャ€?
+### 6.2 灏氭湭钀藉湴鎶€鏈爤
 
-## 4. 正在开发模块
+浠ヤ笅鎶€鏈皻鏈湪褰撳墠浠ｇ爜涓湡姝ｅ疄鐜帮細
 
-当前正在推进的模块：
+- 鏁版嵁搴撹縼绉汇€?- 鍚戦噺鏁版嵁搴撱€?- 鍚庣鑷姩鍖栨祴璇曟鏋躲€?
+## 7. 褰撳墠浠ｇ爜鐘舵€佺粨璁?
+褰撳墠椤圭洰涓嶆槸瀹屾暣鍙敤鐨?AI 搴旂敤 MVP锛岃€屾槸锛?
+**鍖楄景agent 绠€娲?UI + 鏂囦欢涓績杞婚噺宸ヤ綔鍙颁綋楠?+ 鍚庣鐪熷疄 LLM 鑱婂ぉ闂幆 + 鍚庣鏈湴鏂囦欢涓婁紶闂幆 + 鏂囦欢鍏冩暟鎹?SQLite 鎸佷箙鍖?+ 鏂囦欢澶勭悊鐘舵€佹寔涔呭寲 + 鏂囦欢鍒楄〃鍒锋柊鎭㈠ + 鏈€灏忔枃妗ｈВ鏋愰棴鐜?+ 鏂囨湰鍒囧潡闂幆 + Mock / OpenAI-compatible embedding 闂幆 + 鏈湴 VectorStore 闂幆 + Retrieval 妫€绱㈤棴鐜?+ 鍗曟枃浠?RAG 闂瓟闂幆 + 鑱婂ぉ渚?RAG 闂瓟浣撻獙 + 鏅€氳亰澶╁熀纭€涓婁笅鏂囩獥鍙?+ RAG 鏂囦欢闂瓟杩炵画杩介棶 + GitHub 瀹夊叏妫€鏌?+ Windows 鏈湴璇曡繍琛岃剼鏈?+ 鏈湴璇曡繍琛屾枃妗ｃ€?*
 
-- v1.4 Release Readiness 本地试运行整理。
-- README、`.env.example`、本地试运行指南和常见问题文档同步。
-
-下一步最适合推进：
-
-- 对 v1.4 文档和脚本进行最终核对。
-- 后续进入 GitHub 发布前收尾检查或正式部署准备规划。
-
-## 5. 未开始模块
-
-当前尚未开始实现：
-
-- 会话摘要。
-- 历史消息语义检索。
-- 数据库迁移。
-- 全局异常处理。
-- 请求日志和 request id。
-- AI 数据分析服务。
-- 结构化数据上传。
-- 自动图表生成。
-- 数据自然语言解释。
-
-## 6. 当前技术栈
-
-### 6.1 已落地技术栈
-
-前端：
-
-- React 18。
-- TypeScript。
-- Vite。
-- Ant Design 5。
-- Zustand。
-- dayjs。
-
-后端：
-
-- Python。
-- FastAPI。
-- Pydantic。
-- python-dotenv。
-- python-multipart。
-- python-docx。
-- pypdf。
-- SQLite。
-- SQLAlchemy。
-- OpenAI-compatible HTTP 调用。
-- 本地 Mock LLM Provider。
-- 本地文件存储。
-
-工程：
-
-- Git。
-- npm。
-- TypeScript 类型检查。
-- Python 编译检查。
-
-### 6.2 尚未落地技术栈
-
-以下技术尚未在当前代码中真正实现：
-
-- 数据库迁移。
-- 向量数据库。
-- 后端自动化测试框架。
-
-## 7. 当前代码状态结论
-
-当前项目不是完整可用的 AI 应用 MVP，而是：
-
-**北辰agent 简洁 UI + 文件中心轻量工作台体验 + 后端真实 LLM 聊天闭环 + 后端本地文件上传闭环 + 文件元数据 SQLite 持久化 + 文件处理状态持久化 + 文件列表刷新恢复 + 最小文档解析闭环 + 文本切块闭环 + Mock / OpenAI-compatible embedding 闭环 + 本地 VectorStore 闭环 + Retrieval 检索闭环 + 单文件 RAG 问答闭环 + 聊天侧 RAG 问答体验 + 普通聊天基础上下文窗口 + RAG 文件问答连续追问 + GitHub 安全检查 + Windows 本地试运行脚本 + 本地试运行文档。**
-
-项目已经具备继续演进的基础边界：
-
-- 前端有聚焦对话和文件中心的主要页面与状态管理。
-- 后端有 API、Schema、Service、LLM Provider、FileService 的基本分层。
-- 后端已新增 DB 和 Repository 分层，开始承接文件元数据持久化。
-- LLM 调用已经通过 Provider 抽象预留扩展点。
-- 前端聊天已经接入后端 `/api/v1/chat`。
-- 后端已经通过 `.env` 安全读取 DeepSeek API 配置。
-- 文件上传已经通过 `FileService` 预留后续文档解析、RAG 索引和数据库持久化入口。
-- 文档解析已经通过 `DocumentParserService` 预留后续 chunk、embedding 和 RAG 入口。
-- 文本切块已经通过 `ChunkService` 预留后续 embedding 和向量检索入口。
-- Embedding 已经通过 `EmbeddingService` 和 `EmbeddingProvider` 支持 MockEmbeddingProvider 与 OpenAI-compatible Embedding Provider 切换。
-- VectorStore 已经通过 `VectorStoreService` 预留后续 RetrievalService 和 pgvector 替换入口。
-- Retrieval 已经通过 `RetrievalService` 预留后续 RagService 和文件问答入口。
-- RAG 已经通过 `RagService` 复用 RetrievalService 和 LLMProvider，实现单文件问答入口。
-- 聊天侧文件上传已经通过前端 `fileStore.ingestFile()` 串联现有文件处理 API 并保存本地索引；索引完成后，当前对话可直接基于最近一个 indexed 文件提问。
-
-当前最大缺口是：
-
-- RAG 当前仅支持最近一个 indexed 文件的单文件问答。
-- 文件生命周期已经闭环，聊天会话和消息表已创建，Repository 层基础读写能力已完成。
-- 聊天会话 API、普通聊天/RAG 消息落库、前端刷新恢复、当前文件绑定前端接入、自动会话标题、普通聊天基础上下文窗口、RAG 文件问答连续追问、本地试运行脚本和本地试运行文档已完成。
-- AI 数据分析仍只是规划能力，尚未进入实现。
-
-因此，下一阶段应对 v1.4 Release Readiness 做最终核对和 GitHub 发布前收尾检查，再决定是否进入正式部署准备、会话摘要、历史消息语义检索或 AI 数据分析规划实现。AI 数据分析继续保留规划边界，不挤占当前主链路。
+椤圭洰宸茬粡鍏峰缁х画婕旇繘鐨勫熀纭€杈圭晫锛?
+- 鍓嶇鏈夎仛鐒﹀璇濆拰鏂囦欢涓績鐨勪富瑕侀〉闈笌鐘舵€佺鐞嗐€?- 鍚庣鏈?API銆丼chema銆丼ervice銆丩LM Provider銆丗ileService 鐨勫熀鏈垎灞傘€?- 鍚庣宸叉柊澧?DB 鍜?Repository 鍒嗗眰锛屽紑濮嬫壙鎺ユ枃浠跺厓鏁版嵁鎸佷箙鍖栥€?- LLM 璋冪敤宸茬粡閫氳繃 Provider 鎶借薄棰勭暀鎵╁睍鐐广€?- 鍓嶇鑱婂ぉ宸茬粡鎺ュ叆鍚庣 `/api/v1/chat`銆?- 鍚庣宸茬粡閫氳繃 `.env` 瀹夊叏璇诲彇 DeepSeek API 閰嶇疆銆?- 鏂囦欢涓婁紶宸茬粡閫氳繃 `FileService` 棰勭暀鍚庣画鏂囨。瑙ｆ瀽銆丷AG 绱㈠紩鍜屾暟鎹簱鎸佷箙鍖栧叆鍙ｃ€?- 鏂囨。瑙ｆ瀽宸茬粡閫氳繃 `DocumentParserService` 棰勭暀鍚庣画 chunk銆乪mbedding 鍜?RAG 鍏ュ彛銆?- 鏂囨湰鍒囧潡宸茬粡閫氳繃 `ChunkService` 棰勭暀鍚庣画 embedding 鍜屽悜閲忔绱㈠叆鍙ｃ€?- Embedding 宸茬粡閫氳繃 `EmbeddingService` 鍜?`EmbeddingProvider` 鏀寔 MockEmbeddingProvider 涓?OpenAI-compatible Embedding Provider 鍒囨崲銆?- VectorStore 宸茬粡閫氳繃 `VectorStoreService` 棰勭暀鍚庣画 RetrievalService 鍜?pgvector 鏇挎崲鍏ュ彛銆?- Retrieval 宸茬粡閫氳繃 `RetrievalService` 棰勭暀鍚庣画 RagService 鍜屾枃浠堕棶绛斿叆鍙ｃ€?- RAG 宸茬粡閫氳繃 `RagService` 澶嶇敤 RetrievalService 鍜?LLMProvider锛屽疄鐜板崟鏂囦欢闂瓟鍏ュ彛銆?- 鑱婂ぉ渚ф枃浠朵笂浼犲凡缁忛€氳繃鍓嶇 `fileStore.ingestFile()` 涓茶仈鐜版湁鏂囦欢澶勭悊 API 骞朵繚瀛樻湰鍦扮储寮曪紱绱㈠紩瀹屾垚鍚庯紝褰撳墠瀵硅瘽鍙洿鎺ュ熀浜庢渶杩戜竴涓?indexed 鏂囦欢鎻愰棶銆?
+褰撳墠鏈€澶х己鍙ｆ槸锛?
+- RAG 褰撳墠浠呮敮鎸佹渶杩戜竴涓?indexed 鏂囦欢鐨勫崟鏂囦欢闂瓟銆?- 鏂囦欢鐢熷懡鍛ㄦ湡宸茬粡闂幆锛岃亰澶╀細璇濆拰娑堟伅琛ㄥ凡鍒涘缓锛孯epository 灞傚熀纭€璇诲啓鑳藉姏宸插畬鎴愩€?- 鑱婂ぉ浼氳瘽 API銆佹櫘閫氳亰澶?RAG 娑堟伅钀藉簱銆佸墠绔埛鏂版仮澶嶃€佸綋鍓嶆枃浠剁粦瀹氬墠绔帴鍏ャ€佽嚜鍔ㄤ細璇濇爣棰樸€佹櫘閫氳亰澶╁熀纭€涓婁笅鏂囩獥鍙ｃ€丷AG 鏂囦欢闂瓟杩炵画杩介棶銆佹湰鍦拌瘯杩愯鑴氭湰鍜屾湰鍦拌瘯杩愯鏂囨。宸插畬鎴愩€?- AI 鏁版嵁鍒嗘瀽浠嶅彧鏄鍒掕兘鍔涳紝灏氭湭杩涘叆瀹炵幇銆?
+鍥犳锛屼笅涓€闃舵搴斿 v1.4 Release Readiness 鍋氭渶缁堟牳瀵瑰拰 GitHub 鍙戝竷鍓嶆敹灏炬鏌ワ紝鍐嶅喅瀹氭槸鍚﹁繘鍏ユ寮忛儴缃插噯澶囥€佷細璇濇憳瑕併€佸巻鍙叉秷鎭涔夋绱㈡垨 AI 鏁版嵁鍒嗘瀽瑙勫垝瀹炵幇銆侫I 鏁版嵁鍒嗘瀽缁х画淇濈暀瑙勫垝杈圭晫锛屼笉鎸ゅ崰褰撳墠涓婚摼璺€?

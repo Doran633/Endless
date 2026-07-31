@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons';
 import { useChatStore } from '../stores/chatStore';
 import { useAuthStore } from '../stores/authStore';
+import { clearAccessPassword } from '../api/http';
 
 const { Text } = Typography;
 
@@ -49,6 +50,11 @@ export default function Sidebar({ activeNav, onNavChange }: SidebarProps) {
     useChatStore();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const handleLogout = () => {
+    clearAccessPassword();
+    logout();
+    message.success('访问口令已清除');
+  };
 
   const handleNewChat = async () => {
     try {
@@ -384,7 +390,7 @@ export default function Sidebar({ activeNav, onNavChange }: SidebarProps) {
           </div>
           <LogoutOutlined
             style={{ color: 'rgba(255,255,255,0.3)', fontSize: 14, cursor: 'pointer' }}
-            onClick={logout}
+            onClick={handleLogout}
           />
         </div>
       )}

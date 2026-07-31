@@ -1,18 +1,22 @@
 import { useState } from 'react';
-import { Button, Typography, Space, Card } from 'antd';
+import { Button, Typography, Space, Card, Input } from 'antd';
 import {
   RobotOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '../stores/authStore';
+import { getAccessPassword, setAccessPassword } from '../api/http';
 
 const { Title, Text } = Typography;
 
 export default function LoginPage() {
   const login = useAuthStore((s) => s.login);
   const [loading, setLoading] = useState(false);
+  const [accessPassword, setLocalAccessPassword] = useState(getAccessPassword());
 
   const handleLogin = async () => {
     setLoading(true);
+    setAccessPassword(accessPassword);
     await login();
     // login() 会更新 authStore，App.tsx 监听 isLoggedIn 自动跳转
   };
@@ -51,6 +55,14 @@ export default function LoginPage() {
               独立网页版 AI 助手
             </Text>
           </div>
+
+          <Input.Password
+            prefix={<SafetyCertificateOutlined />}
+            placeholder="访问口令，本地开发可留空"
+            value={accessPassword}
+            onChange={(event) => setLocalAccessPassword(event.target.value)}
+            size="large"
+          />
 
           <Button
             type="primary"

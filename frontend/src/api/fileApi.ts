@@ -5,6 +5,7 @@ import type {
   FileItem,
   RetrieveFileResponse,
 } from '../types';
+import { fetchWithAccess } from './http';
 
 interface ApiResponse<T> {
   code: number;
@@ -15,7 +16,7 @@ interface ApiResponse<T> {
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 export async function listFiles(): Promise<FileItem[]> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/files`);
+  const response = await fetchWithAccess(`${API_BASE_URL}/api/v1/files`);
   const payload = (await response.json()) as ApiResponse<{ files: FileItem[] }>;
 
   if (!response.ok || payload.code !== 0 || !payload.data) {
@@ -29,7 +30,7 @@ export async function uploadFile(file: File): Promise<FileItem> {
   const formData = new FormData();
   formData.append('file', file);
 
-  const response = await fetch(`${API_BASE_URL}/api/v1/files`, {
+  const response = await fetchWithAccess(`${API_BASE_URL}/api/v1/files`, {
     method: 'POST',
     body: formData,
   });
@@ -51,7 +52,7 @@ export interface DeleteFileResponse {
 }
 
 export async function deleteFile(fileId: string): Promise<DeleteFileResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/files/${fileId}`, {
+  const response = await fetchWithAccess(`${API_BASE_URL}/api/v1/files/${fileId}`, {
     method: 'DELETE',
   });
   const payload = (await response.json()) as ApiResponse<DeleteFileResponse>;
@@ -72,7 +73,7 @@ export interface ParsedFileResponse {
 }
 
 export async function parseFile(fileId: string, extension: string): Promise<ParsedFileResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/files/${fileId}/parse`, {
+  const response = await fetchWithAccess(`${API_BASE_URL}/api/v1/files/${fileId}/parse`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -97,7 +98,7 @@ export interface ChunkFileResponse {
 }
 
 export async function chunkFile(fileId: string, extension: string): Promise<ChunkFileResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/files/${fileId}/chunks`, {
+  const response = await fetchWithAccess(`${API_BASE_URL}/api/v1/files/${fileId}/chunks`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -124,7 +125,7 @@ export interface EmbedFileResponse {
 }
 
 export async function embedFile(fileId: string, extension: string): Promise<EmbedFileResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/files/${fileId}/embeddings`, {
+  const response = await fetchWithAccess(`${API_BASE_URL}/api/v1/files/${fileId}/embeddings`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -156,7 +157,7 @@ export async function storeFileVectors(
   fileId: string,
   extension: string
 ): Promise<StoreVectorResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/files/${fileId}/vector-store`, {
+  const response = await fetchWithAccess(`${API_BASE_URL}/api/v1/files/${fileId}/vector-store`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -174,7 +175,7 @@ export async function storeFileVectors(
 }
 
 export async function getFileVectorStore(fileId: string): Promise<StoreVectorResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/files/${fileId}/vector-store`);
+  const response = await fetchWithAccess(`${API_BASE_URL}/api/v1/files/${fileId}/vector-store`);
   const payload = (await response.json()) as ApiResponse<StoreVectorResponse>;
 
   if (!response.ok || payload.code !== 0 || !payload.data) {
@@ -189,7 +190,7 @@ export async function retrieveFileChunks(
   query: string,
   topK: number
 ): Promise<RetrieveFileResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/files/${fileId}/retrieve`, {
+  const response = await fetchWithAccess(`${API_BASE_URL}/api/v1/files/${fileId}/retrieve`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -212,7 +213,7 @@ export async function askFile(
   topK: number,
   sessionId?: string
 ): Promise<AskFileResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/files/${fileId}/ask`, {
+  const response = await fetchWithAccess(`${API_BASE_URL}/api/v1/files/${fileId}/ask`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
