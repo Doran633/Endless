@@ -181,6 +181,31 @@ v1.0 鐩爣鏄瀯寤轰竴涓嫭绔嬬綉椤电増 AI 鍔╂墜銆?
 - 未修改 RAG 主链路。
 - 未修改数据库结构。
 - 未引入 Docker、Kubernetes 或复杂 CI/CD。
+# v1.5.6 状态更新
+
+当前阶段：Local Process Control / Startup Stability。
+
+本阶段新增：
+
+- `scripts/check-local.ps1` 明确只检查固定端口的 `LISTENING` 进程，并忽略 `TIME_WAIT`。
+- `scripts/stop-local.ps1` 停止前输出端口、PID 和进程名，停止后再次检查端口是否释放。
+- `scripts/start-local.ps1` 启动前检查 8000 和 5173 是否已有 `LISTENING` 进程。
+- `scripts/start-local.ps1` 启动后请求 `/health/config`，输出当前后端实际读取到的 `llm_model`、`embedding_model`、`embedding_dimension` 和 `access_control.mode`。
+
+本阶段用途：
+
+- 减少旧后端进程占用端口导致 `.env` 修改不生效的问题。
+- 帮助确认前端即将连接的后端是否读取了预期配置。
+- 配合 `/health/config` 快速定位旧进程、旧配置和旧 embedding 问题。
+
+本阶段未做：
+
+- 未修改业务代码。
+- 未修改 RAG 主链路。
+- 未修改数据库结构。
+- 未按 Python 或 Node 进程名批量结束进程。
+- 未解决所有 Windows 权限导致的进程不可见问题。
+
 # v1.5.5 状态更新
 
 当前阶段：Local Debug Health 本地调试健康检查。

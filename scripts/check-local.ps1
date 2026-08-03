@@ -24,9 +24,41 @@ function Test-CommandAvailable($CommandName) {
     return $null -ne (Get-Command $CommandName -ErrorAction SilentlyContinue)
 }
 
-function Get-ListeningProcessIds($Port) {
+function Get-ListeningPortDetails($Port) {
     $connections = Get-NetTCPConnection -LocalAddress 127.0.0.1 -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
-    return @($connections | Select-Object -ExpandProperty OwningProcess -Unique)
+    return @(
+        $connections |
+            Select-Object -ExpandProperty OwningProcess -Unique |
+            ForEach-Object {
+                $processId = $_
+                $processName = "unknown"
+                try {
+                    $process = Get-Process -Id $processId -ErrorAction Stop
+                    $processName = $process.ProcessName
+                } catch {
+                    $processName = "access-denied-or-exited"
+                }
+
+                [PSCustomObject]@{
+                    Port = $Port
+                    PID = $processId
+                    ProcessName = $processName
+                }
+            }
+    )
+}
+
+function Write-PortStatus($Port) {
+    $details = Get-ListeningPortDetails $Port
+    if ($details.Count -eq 0) {
+        Write-Ok "Port $Port has no LISTENING process. TIME_WAIT entries are ignored."
+        return
+    }
+
+    Write-Warn "Port $Port is already in use by LISTENING process(es):"
+    foreach ($detail in $details) {
+        Write-Host "       PID $($detail.PID) ($($detail.ProcessName))"
+    }
 }
 
 Write-Host "Beichen Agent local environment check" -ForegroundColor Cyan
@@ -72,19 +104,8 @@ if (Test-Path $PackageJsonPath) {
     Write-Fail "frontend/package.json is missing"
 }
 
-$BackendPids = Get-ListeningProcessIds $BackendPort
-if ($BackendPids.Count -gt 0) {
-    Write-Warn "Port $BackendPort is already in use. PID: $($BackendPids -join ', ')"
-} else {
-    Write-Ok "Port $BackendPort is free"
-}
-
-$FrontendPids = Get-ListeningProcessIds $FrontendPort
-if ($FrontendPids.Count -gt 0) {
-    Write-Warn "Port $FrontendPort is already in use. PID: $($FrontendPids -join ', ')"
-} else {
-    Write-Ok "Port $FrontendPort is free"
-}
+Write-PortStatus $BackendPort
+Write-PortStatus $FrontendPort
 
 Write-Host ""
-Write-Host "Check complete. If a port is in use, run scripts/stop-local.ps1 before starting." -ForegroundColor Cyan
+Write-Host "Check complete. If a port has LISTENING processes, run scripts/stop-local.ps1 before starting." -ForegroundColor Cyan
