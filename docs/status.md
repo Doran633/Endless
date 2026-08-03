@@ -181,3 +181,24 @@ v1.0 鐩爣鏄瀯寤轰竴涓嫭绔嬬綉椤电増 AI 鍔╂墜銆?
 - 未修改 RAG 主链路。
 - 未修改数据库结构。
 - 未引入 Docker、Kubernetes 或复杂 CI/CD。
+# v1.5.4 状态更新
+
+当前阶段：Invite Code Access 邀请码访问。
+
+本阶段新增：
+
+- 后端支持 `APP_INVITE_CODES`，可在 `backend/.env` 中配置多个 6 位数字邀请码。
+- `APP_INVITE_CODES` 非空时优先使用邀请码列表。
+- `APP_INVITE_CODES` 为空但 `APP_ACCESS_PASSWORD` 非空时，保留旧单口令兼容。
+- 两者都为空时，本地开发不启用访问保护。
+- 前端入口页文案已调整为“邀请码”。
+- 邀请码仍通过 `localStorage` 保存，并通过 `X-Beichen-Access` 请求头发送。
+
+本阶段未做：
+
+- 未实现注册登录。
+- 未实现用户系统。
+- 未新增数据库表。
+- 未实现 JWT 或 refresh token。
+- 未实现多用户权限隔离。
+- 未修改 RAG 主链路和数据库结构。

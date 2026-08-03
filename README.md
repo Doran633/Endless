@@ -229,3 +229,15 @@ docs/local_trial_guide.md
 ## 褰撳墠闄愬埗
 
 - 褰撳墠鍙敮鎸佹渶杩戜竴涓?indexed 鏂囦欢鐨勫崟鏂囦欢 RAG 闂瓟銆?- 褰撳墠鏈湴 JSON VectorStore 涓嶉€傚悎鐢熶骇绾уぇ瑙勬ā鏁版嵁銆?- 褰撳墠 SQLite 閫傚悎鏈湴 MVP锛屼笉閫傚悎浣滀负澶氫汉鐢熶骇鏁版嵁搴撱€?- PDF 瑙ｆ瀽浠呮敮鎸佸彲澶嶅埗鏂囨湰鍨?PDF锛屼笉鏀寔 OCR銆?- 褰撳墠娌℃湁鐢ㄦ埛鐧诲綍鍜屾潈闄愰殧绂汇€?- 褰撳墠娌℃湁姝ｅ紡閮ㄧ讲鏂规銆?- Agent Workflow銆佷紒涓氭潈闄愩€佸绉熸埛鍜?PPT 鐢熸垚鏆傛湭瀹炵幇銆?
+# v1.5.4 邀请码访问
+
+公网或小范围试用时，可以在 `backend/.env` 中配置多个 6 位数字邀请码：
+
+```env
+APP_INVITE_CODES=123456,654321,839204
+APP_ACCESS_HEADER=X-Beichen-Access
+```
+
+如果 `APP_INVITE_CODES` 非空，后端会优先使用邀请码列表。`APP_INVITE_CODES` 为空但 `APP_ACCESS_PASSWORD` 非空时，项目仍兼容旧的单口令模式。两者都为空时，本地开发不启用访问保护。
+
+不要把真实邀请码提交到 GitHub。`backend/.env.example` 只提供字段示例。

@@ -1,9 +1,6 @@
 import { useState } from 'react';
 import { Button, Typography, Space, Card, Input } from 'antd';
-import {
-  RobotOutlined,
-  SafetyCertificateOutlined,
-} from '@ant-design/icons';
+import { RobotOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import { useAuthStore } from '../stores/authStore';
 import { getAccessPassword, setAccessPassword } from '../api/http';
 
@@ -12,13 +9,12 @@ const { Title, Text } = Typography;
 export default function LoginPage() {
   const login = useAuthStore((s) => s.login);
   const [loading, setLoading] = useState(false);
-  const [accessPassword, setLocalAccessPassword] = useState(getAccessPassword());
+  const [inviteCode, setInviteCode] = useState(getAccessPassword());
 
   const handleLogin = async () => {
     setLoading(true);
-    setAccessPassword(accessPassword);
+    setAccessPassword(inviteCode);
     await login();
-    // login() 会更新 authStore，App.tsx 监听 isLoggedIn 自动跳转
   };
 
   return (
@@ -58,9 +54,9 @@ export default function LoginPage() {
 
           <Input.Password
             prefix={<SafetyCertificateOutlined />}
-            placeholder="访问口令，本地开发可留空"
-            value={accessPassword}
-            onChange={(event) => setLocalAccessPassword(event.target.value)}
+            placeholder="邀请码，本地开发可留空"
+            value={inviteCode}
+            onChange={(event) => setInviteCode(event.target.value)}
             size="large"
           />
 
@@ -77,11 +73,11 @@ export default function LoginPage() {
               fontSize: 16,
             }}
           >
-            进入演示
+            进入北辰agent
           </Button>
 
           <Text type="secondary" style={{ fontSize: 12 }}>
-            演示版本 · 当前不接入企业登录
+            MVP 试用版本，当前使用邀请码保护 API 调用
           </Text>
         </Space>
       </Card>
