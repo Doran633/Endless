@@ -70,7 +70,9 @@ Example:
 
 ```env
 APP_NAME=Beichen Agent Backend
-APP_ACCESS_PASSWORD=replace-with-a-long-random-password
+# Prefer invite codes for small-scope trials.
+APP_INVITE_CODES=replace-with-six-digit-code,replace-with-another-code
+APP_ACCESS_PASSWORD=
 APP_ACCESS_HEADER=X-Beichen-Access
 
 LLM_PROVIDER=openai
@@ -91,9 +93,13 @@ UPLOAD_DIR=/opt/beichen-agent/runtime/uploads
 VECTOR_STORE_DIR=/opt/beichen-agent/runtime/vector_store
 MAX_UPLOAD_SIZE_MB=20
 ALLOWED_UPLOAD_EXTENSIONS=txt,pdf,docx
+
+LOG_LEVEL=INFO
+LOG_TO_FILE=true
+LOG_DIR=/opt/beichen-agent/logs
 ```
 
-Never commit this file. Never put real API keys or real access passwords into docs.
+Never commit this file. Never put real API keys, real invite codes, or real access passwords into docs.
 
 ## 5. Backend Setup
 
@@ -244,14 +250,40 @@ Common symptoms:
 - `502 Bad Gateway`: backend is not running, systemd failed, or port 8000 is unavailable.
 - `404 on refresh`: Nginx SPA fallback is missing.
 - `413 Payload Too Large`: Nginx `client_max_body_size` is too small.
-- `401`: access password is missing or wrong.
+- `401`: invite code or legacy access password is missing or wrong.
 - RAG answer fails: check API keys, embedding settings, vector_store path, and backend logs.
 
-## 14. Security Boundary
+## 14. Deployment Verification
+
+After deployment, verify the server from the VPS:
+
+```bash
+curl http://127.0.0.1:8000/health
+curl http://127.0.0.1:8000/health/config
+```
+
+Then verify through Nginx:
+
+```bash
+curl https://example.com/health
+curl https://example.com/health/config
+```
+
+Open the browser and test:
+
+- Invite code entry.
+- Normal chat.
+- Upload a small TXT file.
+- Automatic parsing, chunking, embedding, and indexing.
+- Single-file RAG answer.
+
+The Windows smoke test script is for local development. On Ubuntu VPS, use the curl checks above plus manual browser verification unless PowerShell is installed on the server.
+
+## 15. Security Boundary
 
 This deployment is still an MVP:
 
-- It has shared access password protection, not a real user system.
+- It has invite code protection, not a real user system.
 - It has no per-user isolation.
 - It has no rate limit.
 - It uses SQLite and local files.

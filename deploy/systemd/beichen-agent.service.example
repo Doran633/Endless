@@ -17,5 +17,8 @@ RestartSec=5
 StandardOutput=append:/opt/beichen-agent/logs/backend.log
 StandardError=append:/opt/beichen-agent/logs/backend.err.log
 
+# The app can also write its own log file when LOG_TO_FILE=true in
+# /opt/beichen-agent/runtime/backend.env. Keep both log paths private.
+
 [Install]
 WantedBy=multi-user.target

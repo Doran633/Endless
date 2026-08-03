@@ -1,4 +1,28 @@
-﻿# v1.5.8 状态更新
+﻿# v1.6.0 状态更新
+
+当前阶段：VPS Deployment Checklist 部署清单核对。
+
+本阶段新增：
+
+- 新增 `docs/v1.6_vps_deployment_checklist.md`，整理 Ubuntu VPS + Nginx + systemd 的真实部署执行清单。
+- 核对并小幅更新 `deploy/nginx/beichen-agent.conf.example`，明确 `www` 域名占位、前端静态目录、`/api/`、`/health` 和 `/health/config` 反向代理。
+- 核对并小幅更新 `deploy/systemd/beichen-agent.service.example`，补充应用文件日志说明。
+- 更新 `docs/deployment_guide.md`，同步邀请码访问、日志配置和部署后验证步骤。
+
+本阶段结论：
+
+- 当前推荐部署路线仍是小型 Ubuntu VPS + Nginx + systemd。
+- 暂不引入 Docker、Kubernetes 或复杂 CI/CD。
+- 部署前仍需购买或准备服务器、域名、生产 API Key、生产邀请码，并执行一次真实服务器部署演练。
+
+本阶段未做：
+
+- 未新增 AI 业务功能。
+- 未修改 RAG 主链路。
+- 未修改数据库结构。
+- 未提交真实 API Key、真实邀请码或服务器密码。
+
+# v1.5.8 状态更新
 
 当前阶段：Runtime Verification / Release Smoke Test。
 
