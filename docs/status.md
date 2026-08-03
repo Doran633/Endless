@@ -1,4 +1,37 @@
-﻿# v1.5.1 状态更新
+﻿# v1.5.7 状态更新
+
+当前阶段：Local Error Logging 本地错误日志。
+
+本阶段新增：
+
+- 后端启动时初始化 Python logging，默认输出到控制台。
+- 支持通过 `backend/.env` 配置 `LOG_LEVEL`、`LOG_TO_FILE` 和 `LOG_DIR`。
+- 当 `LOG_TO_FILE=true` 时，后端会写入 `backend/logs/app.log`。
+- 每个 HTTP 请求会生成或沿用 `X-Request-Id`。
+- 每个响应 header 都会返回 `X-Request-Id`。
+- `AppError` 错误响应 body 会包含 `request_id`。
+- 请求开始、请求完成、请求异常会记录 method、path、status_code、duration_ms 和 request_id。
+- 应用错误会记录错误类型、业务错误码、HTTP 状态码和摘要信息。
+
+本阶段安全边界：
+
+- 不记录 API Key、真实邀请码或访问口令。
+- 不记录完整用户消息、完整 prompt、上传文件内容、chunks 和 embeddings。
+- `backend/logs/` 和 `*.log` 已被 `.gitignore` 忽略。
+
+本阶段用途：
+
+- 通过 request_id 将前端报错、API 响应和后端日志关联起来。
+- 辅助定位 LLM、Embedding、文件处理和 RAG 相关失败。
+- 为后续 VPS 部署后的日志排查打基础。
+
+本阶段限制：
+
+- 这不是集中式日志系统。
+- 没有接入 Sentry、OpenTelemetry 或外部监控。
+- 不能自动解决端口占用，只能帮助定位请求和错误发生在哪个后端进程中。
+
+# v1.5.1 状态更新
 
 当前阶段：Minimal Access Protection 最小访问保护。
 
