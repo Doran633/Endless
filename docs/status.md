@@ -1,4 +1,30 @@
-﻿# v1.5.7 状态更新
+﻿# v1.5.8 状态更新
+
+当前阶段：Runtime Verification / Release Smoke Test。
+
+本阶段新增：
+
+- 新增 `scripts/smoke-test-local.ps1`，用于执行本地发布前 smoke test。
+- Smoke test 会检查后端端口、前端端口、`/health`、`/health/config`、邀请码保护、普通聊天、文件上传、解析、切块、embedding、vector-store、RAG 问答和 request_id。
+- 脚本会读取本地 `.env` 中的访问 header 和访问码用于请求，但不会打印真实邀请码或访问口令。
+- 脚本上传临时 TXT 文件验证文件处理链路，完成后会调用删除 API 清理测试文件和测试会话。
+- `scripts/check-local.ps1`、`scripts/start-local.ps1`、`scripts/stop-local.ps1` 的端口检测统一改为 `netstat`，避免 `Get-NetTCPConnection` 在当前 Windows 环境中误报端口空闲。
+- 新增 `docs/v1.5_smoke_test_report.md`，记录验证项、通过标准和失败排查方式。
+
+本阶段未做：
+
+- 未新增 AI 业务功能。
+- 未修改 RAG 主链路。
+- 未修改数据库结构。
+- 未引入 Docker、新平台或浏览器自动化测试。
+
+本阶段用途：
+
+- 把“本机能跑”变成“可重复检查”。
+- 为后续 VPS 部署前验收提供固定检查流程。
+- 降低旧进程、旧配置、访问保护和 RAG 链路问题的排查成本。
+
+# v1.5.7 状态更新
 
 当前阶段：Local Error Logging 本地错误日志。
 

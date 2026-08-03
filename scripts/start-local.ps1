@@ -9,10 +9,12 @@ $BackendDir = Join-Path $ProjectRoot "backend"
 $FrontendDir = Join-Path $ProjectRoot "frontend"
 
 function Get-ListeningPortDetails($Port) {
-    $connections = Get-NetTCPConnection -LocalAddress 127.0.0.1 -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+    $pattern = "127.0.0.1:$Port"
+    $connections = netstat -ano | Select-String $pattern | Select-String "LISTENING"
     return @(
         $connections |
-            Select-Object -ExpandProperty OwningProcess -Unique |
+            ForEach-Object { ($_ -split "\s+")[-1] } |
+            Sort-Object -Unique |
             ForEach-Object {
                 $processId = $_
                 $processName = "unknown"
