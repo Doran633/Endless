@@ -181,6 +181,41 @@ v1.0 鐩爣鏄瀯寤轰竴涓嫭绔嬬綉椤电増 AI 鍔╂墜銆?
 - 未修改 RAG 主链路。
 - 未修改数据库结构。
 - 未引入 Docker、Kubernetes 或复杂 CI/CD。
+# v1.5.5 状态更新
+
+当前阶段：Local Debug Health 本地调试健康检查。
+
+本阶段新增：
+
+- `GET /health/config`：返回当前运行后端实际读取到的非敏感配置摘要。
+- 返回 LLM provider/model、Embedding provider/model/dimension。
+- 返回 SQLite、uploads、vector_store 的路径摘要。
+- 返回访问保护是否启用、访问保护模式、请求头名称和邀请码数量。
+
+本阶段不返回：
+
+- API Key。
+- 真实邀请码。
+- 访问口令。
+- 上传文件内容。
+- 文件列表。
+- 聊天记录。
+- chunks。
+- embeddings。
+
+本阶段用途：
+
+- 帮助判断当前前端连接的是新后端还是旧后端。
+- 帮助确认 `.env` 修改后是否被当前运行进程读取。
+- 帮助确认 embedding 是否已经切换到真实 provider。
+- 辅助本地调试和未来 VPS 部署前检查。
+
+本阶段限制：
+
+- 不能自动杀掉旧进程。
+- 不能自动释放被占用端口。
+- 不能替代日志系统和监控系统。
+
 # v1.5.4 状态更新
 
 当前阶段：Invite Code Access 邀请码访问。
