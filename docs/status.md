@@ -4,7 +4,7 @@
 
 ## 1. 当前版本
 
-当前阶段：v1.7.4 Frontend Error UX and Request ID。
+当前阶段：v1.7.5 Semi-Automated VPS Deploy。
 
 上一稳定能力版本：v1.6.3 Anonymous Client Isolation。
 
@@ -106,6 +106,7 @@
 - VPS 部署指南。
 - Ubuntu VPS runtime 备份脚本模板。
 - Ubuntu VPS runtime 恢复脚本模板。
+- Ubuntu VPS 半自动更新部署脚本模板。
 - 后端 pytest 基础测试框架。
 - 后端开发测试依赖文件 `backend/requirements-dev.txt`。
 - 健康检查、访问保护、匿名 client_id、文件隔离和会话隔离基础测试。
@@ -231,12 +232,13 @@ v1.7 是 Production Hardening 阶段，目标不是新增 AI 能力，而是提�
 - 增加基础后端自动化测试。
 - 优化前端错误提示和 request_id 展示。
 - 固化部署更新流程。
+- 半自动化 VPS 更新部署流程。
 
 ## 8. 下一步建议
 
 优先级顺序：
 
-1. 完成 v1.7.4 前端错误提示和 request_id 展示优化验证。
+1. 在 VPS 上实测 `deploy/scripts/deploy-vps.sh.example` 半自动部署脚本。
 2. 备案通过后配置域名和 HTTPS。
 3. 小范围试用期间坚持部署前备份和部署后 smoke test。
 4. 后续逐步补充 RAG 集成测试和备份脚本服务器实测记录。

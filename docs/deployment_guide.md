@@ -186,7 +186,70 @@ sudo certbot --nginx -d example.com
 
 HTTPS is required for public use because the access password, chat content, and uploaded files should not travel over plain HTTP.
 
-## 10. Update Deployment
+## 10. Semi-Automated Update Deployment
+
+After v1.7.5, the recommended update path is to push code to GitHub from your local machine, then run one deployment script on the VPS.
+
+Local machine:
+
+```powershell
+git status
+git add .
+git commit -m "your commit message"
+git push origin main
+```
+
+VPS:
+
+```bash
+ssh root@your-server-ip
+cd /opt/beichen-agent/app
+sudo bash deploy/scripts/deploy-vps.sh.example
+```
+
+The script does the following:
+
+1. Checks required directories and commands.
+2. Confirms the server Git working tree is clean.
+3. Shows the current commit.
+4. Creates a runtime backup by default.
+5. Pulls `origin/main`.
+6. Installs backend dependencies.
+7. Runs backend `compileall`.
+8. Installs frontend dependencies.
+9. Builds frontend assets.
+10. Publishes frontend `dist` to `/opt/beichen-agent/frontend_dist`.
+11. Restarts the `beichen-agent` systemd service.
+12. Checks `/health` and `/health/config`.
+13. Runs `nginx -t`.
+14. Reloads Nginx.
+
+If you intentionally want to skip backup:
+
+```bash
+sudo bash deploy/scripts/deploy-vps.sh.example --skip-backup
+```
+
+If you also want to include recent logs in the backup:
+
+```bash
+sudo bash deploy/scripts/deploy-vps.sh.example --include-logs
+```
+
+Use `--skip-backup` only for low-risk redeploys. Runtime backups may contain uploaded documents, chunks, embeddings, and chat metadata, so keep them private.
+
+The script is semi-automated, not full CI/CD:
+
+- You still decide when to deploy.
+- You still SSH into the server.
+- It does not modify production `.env`.
+- It does not change Nginx domain settings.
+- It does not apply database migrations.
+- It does not delete runtime data or backups.
+
+## 11. Manual Update Deployment
+
+Use this section when debugging the deployment script or when you want to run each step manually.
 
 Before updating code, create a runtime backup:
 
@@ -223,7 +286,7 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
-## 11. Backup
+## 12. Backup
 
 Runtime data is private production data. It should not be committed to GitHub and should not be shared casually.
 
@@ -270,7 +333,7 @@ sudo bash deploy/scripts/backup-runtime.sh.example --include-logs
 
 Remember: `uploads` and `vector_store` may contain document text. Treat backup archives as private data.
 
-## 12. Restore Runtime Data
+## 13. Restore Runtime Data
 
 Restore only when needed. Restore will overwrite current runtime data.
 
@@ -310,7 +373,7 @@ Then check the web UI:
 - Existing sessions can be loaded.
 - Indexed files can still answer RAG questions.
 
-## 13. Rollback Code
+## 14. Rollback Code
 
 ```bash
 cd /opt/beichen-agent/app
@@ -322,7 +385,7 @@ Then rebuild frontend and restart backend using the update steps above.
 
 If runtime data was also damaged, restore from `/opt/beichen-agent/backups` using the restore script above.
 
-## 14. Troubleshooting
+## 15. Troubleshooting
 
 ```bash
 sudo systemctl status beichen-agent
@@ -341,7 +404,7 @@ Common symptoms:
 - `401`: invite code or legacy access password is missing or wrong.
 - RAG answer fails: check API keys, embedding settings, vector_store path, and backend logs.
 
-## 15. Deployment Verification
+## 16. Deployment Verification
 
 After deployment, verify the server from the VPS:
 
@@ -367,12 +430,12 @@ Open the browser and test:
 
 The Windows smoke test script is for local development. On Ubuntu VPS, use the curl checks above plus manual browser verification unless PowerShell is installed on the server.
 
-## 15. Security Boundary
+## 17. Security Boundary
 
 This deployment is still an MVP:
 
 - It has invite code protection, not a real user system.
-- It has no per-user isolation.
+- It has anonymous browser-level `client_id` isolation, not a formal account system.
 - It has no rate limit.
 - It uses SQLite and local files.
 - It is suitable for personal or trusted small-scope trials, not public high-traffic use.

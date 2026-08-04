@@ -1,0 +1,158 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Beichen Agent semi-automated VPS deployment script template.
+# Run this on the Ubuntu VPS after pushing local changes to GitHub.
+# It updates code, builds frontend assets, restarts the backend, and runs health checks.
+# It never prints API keys, invite codes, uploaded file content, chunks, or embeddings.
+
+APP_ROOT="${APP_ROOT:-/opt/beichen-agent}"
+APP_DIR="${APP_DIR:-$APP_ROOT/app}"
+VENV_DIR="${VENV_DIR:-$APP_ROOT/venv}"
+FRONTEND_DIST="${FRONTEND_DIST:-$APP_ROOT/frontend_dist}"
+SERVICE_NAME="${SERVICE_NAME:-beichen-agent}"
+APP_USER="${APP_USER:-www-data}"
+BRANCH="${BRANCH:-main}"
+
+SKIP_BACKUP=false
+INCLUDE_LOGS=false
+
+for arg in "$@"; do
+  case "$arg" in
+    --skip-backup)
+      SKIP_BACKUP=true
+      ;;
+    --include-logs)
+      INCLUDE_LOGS=true
+      ;;
+    -h|--help)
+      echo "Usage: $0 [--skip-backup] [--include-logs]"
+      exit 0
+      ;;
+    *)
+      echo "[ERROR] Unknown argument: $arg" >&2
+      echo "Usage: $0 [--skip-backup] [--include-logs]" >&2
+      exit 1
+      ;;
+  esac
+done
+
+log() {
+  echo
+  echo "==> $1"
+}
+
+fail() {
+  echo "[ERROR] $1" >&2
+  exit 1
+}
+
+run_as_app_user() {
+  sudo -u "$APP_USER" "$@"
+}
+
+require_command() {
+  command -v "$1" >/dev/null 2>&1 || fail "Missing required command: $1"
+}
+
+if [ "$(id -u)" -ne 0 ]; then
+  fail "Please run with sudo: sudo bash deploy/scripts/deploy-vps.sh.example"
+fi
+
+require_command git
+require_command python3
+require_command npm
+require_command curl
+require_command systemctl
+require_command nginx
+
+[ -d "$APP_DIR/.git" ] || fail "Git repository not found: $APP_DIR"
+[ -d "$APP_DIR/backend" ] || fail "Backend directory not found: $APP_DIR/backend"
+[ -d "$APP_DIR/frontend" ] || fail "Frontend directory not found: $APP_DIR/frontend"
+[ -f "$APP_DIR/backend/requirements.txt" ] || fail "Missing backend/requirements.txt"
+[ -f "$APP_DIR/frontend/package.json" ] || fail "Missing frontend/package.json"
+[ -d "$VENV_DIR" ] || fail "Python venv not found: $VENV_DIR"
+
+cd "$APP_DIR"
+
+log "Preflight"
+echo "App root:      $APP_ROOT"
+echo "App dir:       $APP_DIR"
+echo "Frontend dist: $FRONTEND_DIST"
+echo "Service:       $SERVICE_NAME"
+echo "Branch:        $BRANCH"
+echo "App user:      $APP_USER"
+
+if [ -n "$(run_as_app_user git status --porcelain)" ]; then
+  run_as_app_user git status --short
+  fail "Git working tree is not clean. Commit, stash, or reset server-local changes before deploy."
+fi
+
+before_commit="$(run_as_app_user git rev-parse --short HEAD)"
+echo "Current commit: $before_commit"
+
+if [ "$SKIP_BACKUP" = false ]; then
+  log "Runtime backup"
+  backup_args=()
+  if [ "$INCLUDE_LOGS" = true ]; then
+    backup_args+=("--include-logs")
+  fi
+  bash "$APP_DIR/deploy/scripts/backup-runtime.sh.example" "${backup_args[@]}"
+else
+  echo "[WARN] Runtime backup skipped by --skip-backup."
+fi
+
+log "Pull latest code"
+run_as_app_user git fetch origin "$BRANCH"
+run_as_app_user git checkout "$BRANCH"
+run_as_app_user git pull --ff-only origin "$BRANCH"
+after_commit="$(run_as_app_user git rev-parse --short HEAD)"
+echo "Updated commit: $before_commit -> $after_commit"
+
+log "Backend dependencies and syntax check"
+cd "$APP_DIR/backend"
+run_as_app_user "$VENV_DIR/bin/pip" install -r requirements.txt
+run_as_app_user "$VENV_DIR/bin/python" -m compileall app
+
+log "Frontend dependencies and build"
+cd "$APP_DIR/frontend"
+if [ -f package-lock.json ]; then
+  run_as_app_user npm ci
+else
+  run_as_app_user npm install
+fi
+run_as_app_user npm run build
+
+log "Publish frontend assets"
+temp_dist="$APP_ROOT/frontend_dist.new"
+previous_dist="$APP_ROOT/frontend_dist.previous"
+rm -rf "$temp_dist"
+mkdir -p "$temp_dist"
+cp -a "$APP_DIR/frontend/dist/." "$temp_dist/"
+chown -R "$APP_USER:$APP_USER" "$temp_dist"
+rm -rf "$previous_dist"
+if [ -d "$FRONTEND_DIST" ]; then
+  mv "$FRONTEND_DIST" "$previous_dist"
+fi
+mv "$temp_dist" "$FRONTEND_DIST"
+chown -R "$APP_USER:$APP_USER" "$FRONTEND_DIST"
+
+log "Restart backend service"
+systemctl restart "$SERVICE_NAME"
+systemctl --no-pager --full status "$SERVICE_NAME"
+
+log "Backend health checks"
+curl -fsS http://127.0.0.1:8000/health
+echo
+curl -fsS http://127.0.0.1:8000/health/config
+echo
+
+log "Nginx check and reload"
+nginx -t
+systemctl reload nginx
+
+log "Deployment completed"
+echo "Commit: $before_commit -> $after_commit"
+echo "Next manual checks:"
+echo "- Open the public IP or domain in a browser."
+echo "- Test invite code entry, normal chat, file upload, and one RAG question."
