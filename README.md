@@ -22,6 +22,7 @@ The project is designed for learning, iteration, and trusted small-group trials.
 - RAG follow-up context for file question answering.
 - SQLite persistence for files, processing status, chat sessions, and chat messages.
 - Invite code access protection for small-scope public trials.
+- Anonymous client isolation through `X-Beichen-Client-Id` for trusted public trials.
 - Runtime config health check through `/health/config`.
 - Request logging with `X-Request-Id`.
 - Windows local check, start, stop, and smoke test scripts.
@@ -187,7 +188,7 @@ APP_ACCESS_PASSWORD=
 
 `APP_INVITE_CODES` takes precedence over the legacy `APP_ACCESS_PASSWORD`. If both are empty, access protection is disabled for local development.
 
-This is not a full login system. It does not provide accounts, roles, user isolation, audit logs, JWT refresh tokens, or multi-user permission management.
+This is not a full login system. It does not provide accounts, roles, audit logs, JWT refresh tokens, or formal multi-user permission management. Anonymous `client_id` isolation only separates local browser data spaces for trusted trials.
 
 ## File Question Answering Flow
 
@@ -279,7 +280,7 @@ Never commit:
 - The current chat-side RAG flow binds the latest indexed file in the current session.
 - No multi-file RAG.
 - No enterprise login.
-- No per-user permission isolation.
+- No formal user accounts or role-based permission isolation.
 - No multi-tenant architecture.
 - No Agent workflow.
 - No PPT generation.
@@ -290,4 +291,4 @@ Never commit:
 
 ## Project Status
 
-The project is currently in deployment preparation. It has completed the core RAG MVP loop and is being prepared for a small Ubuntu VPS deployment with Nginx, systemd, invite code protection, logging, and smoke-test verification.
+The project has completed the core single-file RAG MVP loop and has passed public IP deployment verification on a small Ubuntu VPS with Nginx, systemd, invite code protection, anonymous client isolation, logging, and smoke-test support. It is currently being hardened for small trusted trials, domain/HTTPS setup, and safer maintenance.
