@@ -5,6 +5,7 @@ import ChatArea from './ChatArea';
 import FileCenter from './FileCenter';
 import { useChatStore } from '../stores/chatStore';
 import { useFileStore } from '../stores/fileStore';
+import { formatApiError } from '../api/http';
 import type { NavView } from './Sidebar';
 
 export default function ChatLayout() {
@@ -18,8 +19,7 @@ export default function ChatLayout() {
         await loadFiles();
         await loadSessions();
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : '工作台恢复失败';
-        message.error(errorMessage);
+        message.error(formatApiError(error, '工作台恢复失败，请确认邀请码是否正确。'));
       }
     }
 

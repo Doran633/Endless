@@ -4,7 +4,7 @@
 
 ## 1. 当前版本
 
-当前阶段：v1.7.3 Backend Baseline Tests。
+当前阶段：v1.7.4 Frontend Error UX and Request ID。
 
 上一稳定能力版本：v1.6.3 Anonymous Client Isolation。
 
@@ -34,6 +34,8 @@
 - RAG 回答引用片段展示。
 - 文件上传、处理状态和删除交互。
 - API client 自动携带访问邀请码和匿名 `client_id`。
+- 前端统一解析 API 错误，并在可用时展示 `request_id`。
+- 文件处理、聊天、RAG 和会话恢复失败时提供更明确的错误提示。
 
 ### 2.2 普通聊天
 
@@ -112,6 +114,7 @@
 - request_id 日志。
 - 可选文件日志配置。
 - GitHub Safety Check 文档。
+- 前端错误提示与 request_id 排查链路。
 
 ## 3. 当前技术栈
 
@@ -233,8 +236,8 @@ v1.7 是 Production Hardening 阶段，目标不是新增 AI 能力，而是提�
 
 优先级顺序：
 
-1. 完成 v1.7.3 后端基础测试验证。
-2. 进入 v1.7.4 前端错误提示和 request_id 展示优化。
-3. 备案通过后配置域名和 HTTPS。
-4. 小范围试用期间坚持部署前备份和部署后 smoke test。
-5. 后续逐步补充 RAG 集成测试和备份脚本服务器实测记录。
+1. 完成 v1.7.4 前端错误提示和 request_id 展示优化验证。
+2. 备案通过后配置域名和 HTTPS。
+3. 小范围试用期间坚持部署前备份和部署后 smoke test。
+4. 后续逐步补充 RAG 集成测试和备份脚本服务器实测记录。
+5. 继续观察真实试用中的错误类型，再决定是否需要更完整的前端日志或监控方案。

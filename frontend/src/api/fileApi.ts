@@ -5,25 +5,18 @@ import type {
   FileItem,
   RetrieveFileResponse,
 } from '../types';
-import { fetchWithAccess } from './http';
-
-interface ApiResponse<T> {
-  code: number;
-  message: string;
-  data: T | null;
-}
+import { fetchWithAccess, parseApiResponse } from './http';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 export async function listFiles(): Promise<FileItem[]> {
   const response = await fetchWithAccess(`${API_BASE_URL}/api/v1/files`);
-  const payload = (await response.json()) as ApiResponse<{ files: FileItem[] }>;
+  const payload = await parseApiResponse<{ files: FileItem[] }>(
+    response,
+    '文件列表读取失败。'
+  );
 
-  if (!response.ok || payload.code !== 0 || !payload.data) {
-    throw new Error(payload.message || '文件列表读取失败');
-  }
-
-  return payload.data.files;
+  return payload.files;
 }
 
 export async function uploadFile(file: File): Promise<FileItem> {
@@ -35,13 +28,7 @@ export async function uploadFile(file: File): Promise<FileItem> {
     body: formData,
   });
 
-  const payload = (await response.json()) as ApiResponse<FileItem>;
-
-  if (!response.ok || payload.code !== 0 || !payload.data) {
-    throw new Error(payload.message || '文件上传失败');
-  }
-
-  return payload.data;
+  return parseApiResponse<FileItem>(response, '文件上传失败。');
 }
 
 export interface DeleteFileResponse {
@@ -55,13 +42,8 @@ export async function deleteFile(fileId: string): Promise<DeleteFileResponse> {
   const response = await fetchWithAccess(`${API_BASE_URL}/api/v1/files/${fileId}`, {
     method: 'DELETE',
   });
-  const payload = (await response.json()) as ApiResponse<DeleteFileResponse>;
 
-  if (!response.ok || payload.code !== 0 || !payload.data) {
-    throw new Error(payload.message || '文件删除失败');
-  }
-
-  return payload.data;
+  return parseApiResponse<DeleteFileResponse>(response, '文件删除失败。');
 }
 
 export interface ParsedFileResponse {
@@ -81,13 +63,10 @@ export async function parseFile(fileId: string, extension: string): Promise<Pars
     body: JSON.stringify({ extension }),
   });
 
-  const payload = (await response.json()) as ApiResponse<ParsedFileResponse>;
-
-  if (!response.ok || payload.code !== 0 || !payload.data) {
-    throw new Error(payload.message || '文档解析失败');
-  }
-
-  return payload.data;
+  return parseApiResponse<ParsedFileResponse>(
+    response,
+    '文档解析失败。请确认文件不是扫描件、未损坏，并且格式为 TXT / DOCX / 可复制文本型 PDF。'
+  );
 }
 
 export interface ChunkFileResponse {
@@ -106,13 +85,10 @@ export async function chunkFile(fileId: string, extension: string): Promise<Chun
     body: JSON.stringify({ extension }),
   });
 
-  const payload = (await response.json()) as ApiResponse<ChunkFileResponse>;
-
-  if (!response.ok || payload.code !== 0 || !payload.data) {
-    throw new Error(payload.message || '文本切块失败');
-  }
-
-  return payload.data;
+  return parseApiResponse<ChunkFileResponse>(
+    response,
+    '文本切块失败，可能是解析出的文本为空或格式异常。'
+  );
 }
 
 export interface EmbedFileResponse {
@@ -133,13 +109,10 @@ export async function embedFile(fileId: string, extension: string): Promise<Embe
     body: JSON.stringify({ extension }),
   });
 
-  const payload = (await response.json()) as ApiResponse<EmbedFileResponse>;
-
-  if (!response.ok || payload.code !== 0 || !payload.data) {
-    throw new Error(payload.message || '向量化失败');
-  }
-
-  return payload.data;
+  return parseApiResponse<EmbedFileResponse>(
+    response,
+    '向量化失败，请检查 embedding 配置或稍后重试。'
+  );
 }
 
 export interface StoreVectorResponse {
@@ -165,24 +138,16 @@ export async function storeFileVectors(
     body: JSON.stringify({ extension }),
   });
 
-  const payload = (await response.json()) as ApiResponse<StoreVectorResponse>;
-
-  if (!response.ok || payload.code !== 0 || !payload.data) {
-    throw new Error(payload.message || '向量索引保存失败');
-  }
-
-  return payload.data;
+  return parseApiResponse<StoreVectorResponse>(
+    response,
+    '索引保存失败，请检查服务器存储状态或稍后重试。'
+  );
 }
 
 export async function getFileVectorStore(fileId: string): Promise<StoreVectorResponse> {
   const response = await fetchWithAccess(`${API_BASE_URL}/api/v1/files/${fileId}/vector-store`);
-  const payload = (await response.json()) as ApiResponse<StoreVectorResponse>;
 
-  if (!response.ok || payload.code !== 0 || !payload.data) {
-    throw new Error(payload.message || '向量索引读取失败');
-  }
-
-  return payload.data;
+  return parseApiResponse<StoreVectorResponse>(response, '向量索引读取失败。');
 }
 
 export async function retrieveFileChunks(
@@ -198,13 +163,10 @@ export async function retrieveFileChunks(
     body: JSON.stringify({ query, top_k: topK }),
   });
 
-  const payload = (await response.json()) as ApiResponse<RetrieveFileResponse>;
-
-  if (!response.ok || payload.code !== 0 || !payload.data) {
-    throw new Error(payload.message || '检索失败');
-  }
-
-  return payload.data;
+  return parseApiResponse<RetrieveFileResponse>(
+    response,
+    '文档检索失败，可能是索引不存在或文件尚未处理完成。'
+  );
 }
 
 export async function askFile(
@@ -221,11 +183,8 @@ export async function askFile(
     body: JSON.stringify({ query, top_k: topK, session_id: sessionId }),
   });
 
-  const payload = (await response.json()) as ApiResponse<AskFileResponse>;
-
-  if (!response.ok || payload.code !== 0 || !payload.data) {
-    throw new Error(payload.message || 'RAG 问答失败');
-  }
-
-  return payload.data;
+  return parseApiResponse<AskFileResponse>(
+    response,
+    'RAG 问答失败，请确认文件已完成索引，或稍后重试。'
+  );
 }

@@ -9,6 +9,7 @@ import {
   SendOutlined,
   StopOutlined,
 } from '@ant-design/icons';
+import { formatApiError } from '../api/http';
 import { useChatStore } from '../stores/chatStore';
 import { useFileStore } from '../stores/fileStore';
 
@@ -19,7 +20,7 @@ const ingestionStatusText = {
   uploading: '正在上传文件...',
   parsing: '正在解析文档...',
   chunking: '正在切分文本...',
-  embedding: '正在生成 mock 向量...',
+  embedding: '正在生成向量...',
   indexing: '正在保存本地向量索引...',
   completed: '文件已准备好，可以直接在聊天框中基于该文件提问。',
   failed: '文件处理失败',
@@ -50,9 +51,9 @@ export default function ChatInput() {
     await sendMessage(trimmed);
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
       handleSend();
     }
   };
@@ -81,8 +82,7 @@ export default function ChatInput() {
       }
       message.success(`"${file.name}" 已完成解析、切块、向量化和索引保存`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '文件处理失败';
-      message.error(errorMessage);
+      message.error(formatApiError(error, '文件处理失败。'));
     }
   };
 
@@ -90,6 +90,11 @@ export default function ChatInput() {
     ingestion.status === 'failed'
       ? ingestion.errorMessage || ingestionStatusText.failed
       : ingestionStatusText[ingestion.status];
+
+  const requestIdText =
+    ingestion.status === 'failed' && ingestion.error?.requestId
+      ? `错误追踪 ID：${ingestion.error.requestId}`
+      : '';
 
   return (
     <div
@@ -118,15 +123,15 @@ export default function ChatInput() {
             boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
             transition: 'border-color 0.15s, box-shadow 0.15s',
           }}
-          onFocusCapture={(e) => {
-            const el = e.currentTarget;
-            el.style.borderColor = '#1677ff';
-            el.style.boxShadow = '0 2px 8px rgba(22,119,255,0.12)';
+          onFocusCapture={(event) => {
+            const element = event.currentTarget;
+            element.style.borderColor = '#1677ff';
+            element.style.boxShadow = '0 2px 8px rgba(22,119,255,0.12)';
           }}
-          onBlurCapture={(e) => {
-            const el = e.currentTarget;
-            el.style.borderColor = '#e5e5e5';
-            el.style.boxShadow = '0 2px 6px rgba(0,0,0,0.04)';
+          onBlurCapture={(event) => {
+            const element = event.currentTarget;
+            element.style.borderColor = '#e5e5e5';
+            element.style.boxShadow = '0 2px 6px rgba(0,0,0,0.04)';
           }}
         >
           <input
@@ -152,7 +157,7 @@ export default function ChatInput() {
           <Input.TextArea
             ref={textRef as any}
             value={value}
-            onChange={(e) => setValue(e.target.value)}
+            onChange={(event) => setValue(event.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={
               currentRagFile
@@ -199,20 +204,26 @@ export default function ChatInput() {
             ) : (
               <CheckCircleOutlined style={{ color: '#52c41a' }} />
             )}
-            <Text
-              style={{
-                flex: 1,
-                fontSize: 12,
-                color: ingestion.status === 'failed' ? '#a8071a' : '#3150a5',
-              }}
-            >
-              {currentRagFile
-                ? `知识文件已连接：${currentRagFile.fileName} · ${statusText || '可以基于该文件提问'}`
-                : `${ingestion.fileName ? `${ingestion.fileName} · ` : ''}${statusText}`}
-              {ingestion.status === 'completed' &&
-                typeof ingestion.embeddingCount === 'number' &&
-                ` · ${ingestion.embeddingCount} embeddings / ${ingestion.embeddingDimension} 维`}
-            </Text>
+            <Space direction="vertical" size={2} style={{ flex: 1 }}>
+              <Text
+                style={{
+                  fontSize: 12,
+                  color: ingestion.status === 'failed' ? '#a8071a' : '#3150a5',
+                }}
+              >
+                {currentRagFile
+                  ? `知识文件已连接：${currentRagFile.fileName} · ${
+                      statusText || '可以基于该文件提问'
+                    }`
+                  : `${ingestion.fileName ? `${ingestion.fileName} · ` : ''}${statusText}`}
+                {ingestion.status === 'completed' &&
+                  typeof ingestion.embeddingCount === 'number' &&
+                  ` · ${ingestion.embeddingCount} embeddings / ${ingestion.embeddingDimension} 维`}
+              </Text>
+              {requestIdText && (
+                <Text style={{ fontSize: 11, color: '#a8071a' }}>{requestIdText}</Text>
+              )}
+            </Space>
             {currentRagFile && !isIngesting && (
               <Tooltip title="清除当前文件，恢复普通聊天">
                 <Button

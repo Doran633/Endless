@@ -1,11 +1,5 @@
 import type { ChatMessage, ChatSession } from '../types';
-import { fetchWithAccess } from './http';
-
-interface ApiResponse<T> {
-  code: number;
-  message: string;
-  data: T | null;
-}
+import { fetchWithAccess, parseApiResponse } from './http';
 
 interface ChatResponseData {
   answer: string;
@@ -22,24 +16,20 @@ export async function sendChatMessage(message: string, sessionId?: string): Prom
     body: JSON.stringify({ message, session_id: sessionId }),
   });
 
-  const payload = (await response.json()) as ApiResponse<ChatResponseData>;
-
-  if (!response.ok || payload.code !== 0 || !payload.data) {
-    throw new Error(payload.message || 'AI 回复失败，请稍后重试');
-  }
-
-  return payload.data.answer;
+  const payload = await parseApiResponse<ChatResponseData>(
+    response,
+    'AI 回复失败，请稍后重试。'
+  );
+  return payload.answer;
 }
 
 export async function listChatSessions(): Promise<ChatSession[]> {
   const response = await fetchWithAccess(`${API_BASE_URL}/api/v1/chat/sessions`);
-  const payload = (await response.json()) as ApiResponse<{ sessions: ChatSession[] }>;
-
-  if (!response.ok || payload.code !== 0 || !payload.data) {
-    throw new Error(payload.message || '会话列表读取失败');
-  }
-
-  return payload.data.sessions;
+  const payload = await parseApiResponse<{ sessions: ChatSession[] }>(
+    response,
+    '会话列表读取失败。'
+  );
+  return payload.sessions;
 }
 
 export async function createChatSession(title = '新对话', mode = 'chat'): Promise<ChatSession> {
@@ -50,38 +40,26 @@ export async function createChatSession(title = '新对话', mode = 'chat'): Pro
     },
     body: JSON.stringify({ title, mode }),
   });
-  const payload = (await response.json()) as ApiResponse<ChatSession>;
-
-  if (!response.ok || payload.code !== 0 || !payload.data) {
-    throw new Error(payload.message || '会话创建失败');
-  }
-
-  return payload.data;
+  return parseApiResponse<ChatSession>(response, '会话创建失败。');
 }
 
 export async function deleteChatSession(sessionId: string): Promise<void> {
   const response = await fetchWithAccess(`${API_BASE_URL}/api/v1/chat/sessions/${sessionId}`, {
     method: 'DELETE',
   });
-  const payload = (await response.json()) as ApiResponse<unknown>;
-
-  if (!response.ok || payload.code !== 0) {
-    throw new Error(payload.message || '会话删除失败');
-  }
+  await parseApiResponse<unknown>(response, '会话删除失败。');
 }
 
 export async function listChatMessages(sessionId: string): Promise<ChatMessage[]> {
-  const response = await fetchWithAccess(`${API_BASE_URL}/api/v1/chat/sessions/${sessionId}/messages`);
-  const payload = (await response.json()) as ApiResponse<{
+  const response = await fetchWithAccess(
+    `${API_BASE_URL}/api/v1/chat/sessions/${sessionId}/messages`
+  );
+  const payload = await parseApiResponse<{
     session_id: string;
     messages: ChatMessage[];
-  }>;
+  }>(response, '会话消息读取失败。');
 
-  if (!response.ok || payload.code !== 0 || !payload.data) {
-    throw new Error(payload.message || '会话消息读取失败');
-  }
-
-  return payload.data.messages;
+  return payload.messages;
 }
 
 export async function bindChatSessionFile(
@@ -95,11 +73,5 @@ export async function bindChatSessionFile(
     },
     body: JSON.stringify({ file_id: fileId }),
   });
-  const payload = (await response.json()) as ApiResponse<ChatSession>;
-
-  if (!response.ok || payload.code !== 0 || !payload.data) {
-    throw new Error(payload.message || '会话文件绑定失败');
-  }
-
-  return payload.data;
+  return parseApiResponse<ChatSession>(response, '会话文件绑定失败。');
 }

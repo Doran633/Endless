@@ -9,7 +9,7 @@ import {
 } from '@ant-design/icons';
 import { useChatStore } from '../stores/chatStore';
 import { useAuthStore } from '../stores/authStore';
-import { clearAccessPassword } from '../api/http';
+import { clearAccessPassword, formatApiError } from '../api/http';
 
 const { Text } = Typography;
 
@@ -62,8 +62,7 @@ export default function Sidebar({ activeNav, onNavChange }: SidebarProps) {
       await selectSession(id);
       onNavChange('chat');
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '新建会话失败';
-      message.error(errorMessage);
+      message.error(formatApiError(error, '新建会话失败。'));
     }
   };
 
@@ -72,8 +71,7 @@ export default function Sidebar({ activeNav, onNavChange }: SidebarProps) {
       await selectSession(id);
       onNavChange('chat');
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '会话切换失败';
-      message.error(errorMessage);
+      message.error(formatApiError(error, '会话切换失败。'));
     }
   };
 
@@ -331,8 +329,7 @@ export default function Sidebar({ activeNav, onNavChange }: SidebarProps) {
                   onClick={(e) => {
                     e.stopPropagation();
                     deleteSession(session.id).catch((error) => {
-                      const errorMessage = error instanceof Error ? error.message : '会话删除失败';
-                      message.error(errorMessage);
+                      message.error(formatApiError(error, '会话删除失败。'));
                     });
                   }}
                 />

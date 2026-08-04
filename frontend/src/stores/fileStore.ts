@@ -7,6 +7,8 @@ import { chunkFile as chunkFileApi } from '../api/fileApi';
 import { embedFile as embedFileApi } from '../api/fileApi';
 import { storeFileVectors as storeFileVectorsApi } from '../api/fileApi';
 import { deleteFile as deleteFileApi } from '../api/fileApi';
+import { ApiError, formatApiError } from '../api/http';
+import type { OperationError } from '../types';
 
 interface FileState {
   files: FileItem[];
@@ -25,6 +27,18 @@ interface FileState {
   clearActiveRagFile: () => void;
   deleteFile: (id: string) => Promise<void>;
   getFileById: (id: string) => FileItem | undefined;
+}
+
+function buildOperationError(
+  stage: OperationError['stage'],
+  error: unknown,
+  fallbackMessage: string
+): OperationError {
+  return {
+    stage,
+    message: formatApiError(error, fallbackMessage),
+    requestId: error instanceof ApiError ? error.requestId : undefined,
+  };
 }
 
 export const useFileStore = create<FileState>((set, get) => ({
@@ -163,19 +177,24 @@ export const useFileStore = create<FileState>((set, get) => ({
         activeRagFileName: uploadedFile!.original_name,
       }));
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '文件处理失败';
+      const operationError = buildOperationError(
+        ingestionStageToErrorStage(get().ingestion.status),
+        error,
+        '文件处理失败。'
+      );
       set((state) => ({
         files: uploadedFile
           ? state.files.map((item) =>
               item.id === uploadedFile!.id
-                ? { ...item, status: 'failed', error_message: errorMessage }
+                ? { ...item, status: 'failed', error_message: operationError.message }
                 : item
             )
           : state.files,
         ingestion: {
           status: 'failed',
           fileName: uploadedFile?.original_name ?? file.name,
-          errorMessage,
+          errorMessage: operationError.message,
+          error: operationError,
         },
       }));
       throw error;
@@ -212,10 +231,10 @@ export const useFileStore = create<FileState>((set, get) => ({
         ),
       }));
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '文档解析失败';
+      const operationError = buildOperationError('parse', error, '文档解析失败。');
       set((state) => ({
         files: state.files.map((file) =>
-          file.id === id ? { ...file, status: 'failed', error_message: errorMessage } : file
+          file.id === id ? { ...file, status: 'failed', error_message: operationError.message } : file
         ),
       }));
       throw error;
@@ -254,10 +273,10 @@ export const useFileStore = create<FileState>((set, get) => ({
         ),
       }));
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '文本切块失败';
+      const operationError = buildOperationError('chunk', error, '文本切块失败。');
       set((state) => ({
         files: state.files.map((file) =>
-          file.id === id ? { ...file, status: 'failed', error_message: errorMessage } : file
+          file.id === id ? { ...file, status: 'failed', error_message: operationError.message } : file
         ),
       }));
       throw error;
@@ -302,10 +321,10 @@ export const useFileStore = create<FileState>((set, get) => ({
         ),
       }));
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '向量化失败';
+      const operationError = buildOperationError('embedding', error, '向量化失败。');
       set((state) => ({
         files: state.files.map((file) =>
-          file.id === id ? { ...file, status: 'failed', error_message: errorMessage } : file
+          file.id === id ? { ...file, status: 'failed', error_message: operationError.message } : file
         ),
       }));
       throw error;
@@ -348,10 +367,10 @@ export const useFileStore = create<FileState>((set, get) => ({
         activeRagFileName: targetFile.original_name,
       }));
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '向量索引保存失败';
+      const operationError = buildOperationError('index', error, '向量索引保存失败。');
       set((state) => ({
         files: state.files.map((file) =>
-          file.id === id ? { ...file, status: 'failed', error_message: errorMessage } : file
+          file.id === id ? { ...file, status: 'failed', error_message: operationError.message } : file
         ),
       }));
       throw error;
@@ -381,3 +400,20 @@ export const useFileStore = create<FileState>((set, get) => ({
     return get().files.find((f) => f.id === id);
   },
 }));
+
+function ingestionStageToErrorStage(status: FileIngestionState['status']): OperationError['stage'] {
+  switch (status) {
+    case 'uploading':
+      return 'upload';
+    case 'parsing':
+      return 'parse';
+    case 'chunking':
+      return 'chunk';
+    case 'embedding':
+      return 'embedding';
+    case 'indexing':
+      return 'index';
+    default:
+      return 'upload';
+  }
+}

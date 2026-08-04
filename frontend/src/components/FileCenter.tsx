@@ -32,6 +32,7 @@ import {
 import { useFileStore } from '../stores/fileStore';
 import { useChatStore } from '../stores/chatStore';
 import { askFile, retrieveFileChunks } from '../api/fileApi';
+import { formatApiError } from '../api/http';
 import type { AskFileResponse, FileItem, RetrieveFileResponse } from '../types';
 
 const { Title, Text } = Typography;
@@ -148,8 +149,7 @@ export default function FileCenter() {
 
   useEffect(() => {
     loadFiles().catch((error) => {
-      const errorMessage = error instanceof Error ? error.message : '文件列表读取失败';
-      message.error(errorMessage);
+      message.error(formatApiError(error, '文件列表读取失败。'));
     });
   }, [loadFiles]);
 
@@ -158,8 +158,7 @@ export default function FileCenter() {
       await ingestFile(file);
       message.success(`"${file.name}" 已完成处理，可以开始问答`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '文件自动处理失败';
-      message.error(errorMessage);
+      message.error(formatApiError(error, '文件自动处理失败。'));
     }
     return false;
   };
@@ -180,8 +179,7 @@ export default function FileCenter() {
           }
           message.success(`"${file.original_name}" 已删除`);
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : '文件删除失败';
-          message.error(errorMessage);
+          message.error(formatApiError(error, '文件删除失败。'));
           throw error;
         }
       },
@@ -203,8 +201,7 @@ export default function FileCenter() {
       await parseFile(file.id);
       message.success(`"${file.original_name}" 解析完成`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '文档解析失败';
-      message.error(errorMessage);
+      message.error(formatApiError(error, '文档解析失败。'));
     }
   };
 
@@ -213,8 +210,7 @@ export default function FileCenter() {
       await chunkFile(file.id);
       message.success(`"${file.original_name}" 切块完成`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '文本切块失败';
-      message.error(errorMessage);
+      message.error(formatApiError(error, '文本切块失败。'));
     }
   };
 
@@ -223,8 +219,7 @@ export default function FileCenter() {
       await embedFile(file.id);
       message.success(`"${file.original_name}" 向量化完成`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '向量化失败';
-      message.error(errorMessage);
+      message.error(formatApiError(error, '向量化失败。'));
     }
   };
 
@@ -233,8 +228,7 @@ export default function FileCenter() {
       await storeVectors(file.id);
       message.success(`"${file.original_name}" 向量索引已保存`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '向量索引保存失败';
-      message.error(errorMessage);
+      message.error(formatApiError(error, '向量索引保存失败。'));
     }
   };
 
@@ -252,8 +246,7 @@ export default function FileCenter() {
       setRetrievalResult(result);
       message.success(`已返回 ${result.result_count} 条检索结果`);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '检索失败';
-      message.error(errorMessage);
+      message.error(formatApiError(error, '检索失败。'));
     } finally {
       setRetrieving(false);
     }
@@ -273,8 +266,7 @@ export default function FileCenter() {
       setQaResult(result);
       message.success('RAG 问答完成');
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'RAG 问答失败';
-      message.error(errorMessage);
+      message.error(formatApiError(error, 'RAG 问答失败。'));
     } finally {
       setAsking(false);
     }
@@ -580,6 +572,9 @@ export default function FileCenter() {
               <Text>{ingestionText[ingestion.status]}</Text>
               {ingestion.fileName && <Text type="secondary">{ingestion.fileName}</Text>}
               {ingestion.errorMessage && <Text type="danger">{ingestion.errorMessage}</Text>}
+              {ingestion.error?.requestId && (
+                <Text type="danger">错误追踪 ID：{ingestion.error.requestId}</Text>
+              )}
             </Space>
           </div>
         )}

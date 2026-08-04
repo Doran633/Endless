@@ -9,6 +9,7 @@ import {
   sendChatMessage,
 } from '../api/chatApi';
 import { askFile } from '../api/fileApi';
+import { ApiError, formatApiError } from '../api/http';
 import { useFileStore } from './fileStore';
 
 const INGESTING_STATUSES = ['uploading', 'parsing', 'chunking', 'embedding', 'indexing'];
@@ -258,8 +259,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
         aiContent = await sendChatMessage(content, currentSessionId);
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'AI 回复失败，请稍后重试';
-      aiContent = `AI 回复失败：${message}`;
+      const message = formatApiError(error, 'AI 回复失败，请稍后重试。');
+      const requestId = error instanceof ApiError ? error.requestId : undefined;
+      aiContent = requestId
+        ? `AI 回复失败：${message}\n\n错误追踪 ID：${requestId}`
+        : `AI 回复失败：${message}`;
     }
 
     const aiMsg: Message = {

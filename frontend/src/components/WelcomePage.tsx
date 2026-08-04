@@ -7,6 +7,7 @@ import {
   ThunderboltOutlined,
 } from '@ant-design/icons';
 import { useChatStore } from '../stores/chatStore';
+import { formatApiError } from '../api/http';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -50,8 +51,7 @@ export default function WelcomePage() {
       await selectSession(sessionId);
       await useChatStore.getState().sendMessage(text);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '会话创建失败';
-      message.error(errorMessage);
+      message.error(formatApiError(error, '会话创建失败。'));
     }
   };
 

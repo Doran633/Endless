@@ -158,10 +158,17 @@ export type FileIngestionStatus =
   | 'completed'
   | 'failed';
 
+export interface OperationError {
+  stage: 'upload' | 'parse' | 'chunk' | 'embedding' | 'index' | 'retrieval' | 'rag' | 'chat';
+  message: string;
+  requestId?: string;
+}
+
 export interface FileIngestionState {
   status: FileIngestionStatus;
   fileName?: string;
   errorMessage?: string;
+  error?: OperationError;
   chunkCount?: number;
   embeddingCount?: number;
   embeddingDimension?: number;
