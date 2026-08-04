@@ -4,7 +4,7 @@
 
 ## 1. 当前版本
 
-当前阶段：v1.7.1 Documentation and Brand Cleanup。
+当前阶段：v1.7.2 Runtime Backup and Restore。
 
 上一稳定能力版本：v1.6.3 Anonymous Client Isolation。
 
@@ -102,6 +102,8 @@
 - Nginx 示例配置。
 - systemd 服务模板。
 - VPS 部署指南。
+- Ubuntu VPS runtime 备份脚本模板。
+- Ubuntu VPS runtime 恢复脚本模板。
 - `/health` 健康检查。
 - `/health/config` 非敏感配置健康检查。
 - request_id 日志。
@@ -190,7 +192,7 @@
 
 ### 6.1 数据风险
 
-SQLite、uploads 和 vector_store 是当前核心运行时数据。项目还缺少固定备份和恢复脚本。
+SQLite、uploads 和 vector_store 是当前核心运行时数据。当前已新增 Ubuntu VPS 备份和恢复脚本模板，但仍需在真实服务器更新前养成固定备份习惯。
 
 ### 6.2 部署风险
 
@@ -228,9 +230,8 @@ v1.7 是 Production Hardening 阶段，目标不是新增 AI 能力，而是提�
 
 优先级顺序：
 
-1. 完成 v1.7.1 文档和品牌清理。
-2. 进入 v1.7.2 服务器备份与恢复方案。
-3. 进入 v1.7.3 后端基础测试。
-4. 进入 v1.7.4 前端错误提示优化。
-5. 备案通过后配置域名和 HTTPS。
-
+1. 完成 v1.7.2 服务器备份与恢复方案验证。
+2. 进入 v1.7.3 后端基础测试。
+3. 进入 v1.7.4 前端错误提示优化。
+4. 备案通过后配置域名和 HTTPS。
+5. 小范围试用期间坚持部署前备份和部署后 smoke test。

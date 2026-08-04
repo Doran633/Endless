@@ -188,6 +188,21 @@ HTTPS is required for public use because the access password, chat content, and 
 
 ## 10. Update Deployment
 
+Before updating code, create a runtime backup:
+
+```bash
+cd /opt/beichen-agent/app
+sudo bash deploy/scripts/backup-runtime.sh.example
+```
+
+If you also want to keep recent application logs:
+
+```bash
+sudo bash deploy/scripts/backup-runtime.sh.example --include-logs
+```
+
+Then update the application:
+
 ```bash
 cd /opt/beichen-agent/app
 sudo -u www-data git pull
@@ -210,19 +225,92 @@ sudo systemctl reload nginx
 
 ## 11. Backup
 
-Before every update, back up runtime data:
+Runtime data is private production data. It should not be committed to GitHub and should not be shared casually.
 
-```bash
-backup_dir=/opt/beichen-agent/backups/$(date +%Y%m%d-%H%M%S)
-sudo mkdir -p "$backup_dir"
-sudo cp -r /opt/beichen-agent/runtime/data "$backup_dir/"
-sudo cp -r /opt/beichen-agent/runtime/uploads "$backup_dir/"
-sudo cp -r /opt/beichen-agent/runtime/vector_store "$backup_dir/"
+The required runtime backup set is:
+
+```text
+/opt/beichen-agent/runtime/data
+/opt/beichen-agent/runtime/uploads
+/opt/beichen-agent/runtime/vector_store
 ```
 
-Remember: `vector_store` JSON files contain document chunk text. Treat them as private data.
+These three directories should be backed up together:
 
-## 12. Rollback
+- `data` contains SQLite metadata, sessions, messages, and file status.
+- `uploads` contains original uploaded documents.
+- `vector_store` contains local JSON indexes, chunks, and embeddings.
+
+If one of them is missing after restore, the app may show inconsistent state. For example, SQLite may still list a file while the original upload or vector index no longer exists.
+
+Use the script template:
+
+```bash
+cd /opt/beichen-agent/app
+sudo bash deploy/scripts/backup-runtime.sh.example
+```
+
+The script writes a timestamped archive to:
+
+```text
+/opt/beichen-agent/backups/
+```
+
+The archive name looks like:
+
+```text
+beichen-runtime-YYYYMMDD-HHMMSS.tar.gz
+```
+
+Optional logs backup:
+
+```bash
+sudo bash deploy/scripts/backup-runtime.sh.example --include-logs
+```
+
+Remember: `uploads` and `vector_store` may contain document text. Treat backup archives as private data.
+
+## 12. Restore Runtime Data
+
+Restore only when needed. Restore will overwrite current runtime data.
+
+Before restoring:
+
+1. Confirm the backup archive is the one you want.
+2. Understand that current SQLite, uploads, and vector_store data will be replaced.
+3. Avoid restoring during active user testing.
+
+Run:
+
+```bash
+cd /opt/beichen-agent/app
+sudo bash deploy/scripts/restore-runtime.sh.example /opt/beichen-agent/backups/beichen-runtime-YYYYMMDD-HHMMSS.tar.gz
+```
+
+The restore script:
+
+- Requires you to type `RESTORE`.
+- Stops the `beichen-agent` systemd service.
+- Creates a safety pre-restore archive when possible.
+- Extracts runtime data back into `/opt/beichen-agent/runtime`.
+- Fixes ownership to `www-data:www-data`.
+- Starts the backend service again.
+
+After restore, verify:
+
+```bash
+sudo systemctl status beichen-agent
+curl http://127.0.0.1:8000/health
+curl http://127.0.0.1:8000/health/config
+```
+
+Then check the web UI:
+
+- File list can be loaded.
+- Existing sessions can be loaded.
+- Indexed files can still answer RAG questions.
+
+## 13. Rollback Code
 
 ```bash
 cd /opt/beichen-agent/app
@@ -232,9 +320,9 @@ sudo -u www-data git checkout <stable-commit>
 
 Then rebuild frontend and restart backend using the update steps above.
 
-If runtime data was damaged, restore from `/opt/beichen-agent/backups`.
+If runtime data was also damaged, restore from `/opt/beichen-agent/backups` using the restore script above.
 
-## 13. Troubleshooting
+## 14. Troubleshooting
 
 ```bash
 sudo systemctl status beichen-agent
@@ -253,7 +341,7 @@ Common symptoms:
 - `401`: invite code or legacy access password is missing or wrong.
 - RAG answer fails: check API keys, embedding settings, vector_store path, and backend logs.
 
-## 14. Deployment Verification
+## 15. Deployment Verification
 
 After deployment, verify the server from the VPS:
 

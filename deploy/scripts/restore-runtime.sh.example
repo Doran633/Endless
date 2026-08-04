@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Beichen Agent runtime restore script template for Ubuntu VPS.
+# Restoring overwrites runtime data. It does not restore backend.env.
+
+APP_ROOT="${APP_ROOT:-/opt/beichen-agent}"
+RUNTIME_DIR="${RUNTIME_DIR:-$APP_ROOT/runtime}"
+SERVICE_NAME="${SERVICE_NAME:-beichen-agent}"
+
+if [ "$#" -ne 1 ]; then
+  echo "Usage: $0 /opt/beichen-agent/backups/beichen-runtime-YYYYMMDD-HHMMSS.tar.gz" >&2
+  exit 1
+fi
+
+backup_file="$1"
+
+if [ ! -f "$backup_file" ]; then
+  echo "[ERROR] Backup file does not exist: $backup_file" >&2
+  exit 1
+fi
+
+echo "Beichen Agent runtime restore"
+echo "Backup file:       $backup_file"
+echo "Runtime directory: $RUNTIME_DIR"
+echo
+echo "[WARNING] This restore will overwrite current runtime data:"
+echo "  - $RUNTIME_DIR/data"
+echo "  - $RUNTIME_DIR/uploads"
+echo "  - $RUNTIME_DIR/vector_store"
+echo
+echo "It will NOT restore backend.env and will NOT delete the backups directory."
+echo
+read -r -p "Type RESTORE to continue: " confirm
+
+if [ "$confirm" != "RESTORE" ]; then
+  echo "Restore cancelled."
+  exit 0
+fi
+
+echo "Stopping service: $SERVICE_NAME"
+sudo systemctl stop "$SERVICE_NAME"
+
+pre_restore_backup="$APP_ROOT/backups/pre-restore-$(date +%Y%m%d-%H%M%S).tar.gz"
+if [ -d "$RUNTIME_DIR" ]; then
+  echo "Creating safety backup before restore: $pre_restore_backup"
+  sudo mkdir -p "$APP_ROOT/backups"
+  sudo tar -czf "$pre_restore_backup" -C "$RUNTIME_DIR" data uploads vector_store 2>/dev/null || true
+fi
+
+sudo mkdir -p "$RUNTIME_DIR"
+
+echo "Restoring archive..."
+sudo tar -xzf "$backup_file" -C "$RUNTIME_DIR"
+
+echo "Fixing runtime ownership..."
+sudo chown -R www-data:www-data "$RUNTIME_DIR"
+
+echo "Starting service: $SERVICE_NAME"
+sudo systemctl start "$SERVICE_NAME"
+
+echo "[OK] Restore completed."
+echo "Next checks:"
+echo "  sudo systemctl status $SERVICE_NAME"
+echo "  curl http://127.0.0.1:8000/health"
+echo "  curl http://127.0.0.1:8000/health/config"
+echo
+echo "After the service is healthy, verify file list, chat sessions, and RAG answers from the web UI."
+

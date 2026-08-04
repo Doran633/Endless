@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Beichen Agent runtime backup script template for Ubuntu VPS.
+# It backs up runtime data only. It does not print secrets and does not delete data.
+
+APP_ROOT="${APP_ROOT:-/opt/beichen-agent}"
+RUNTIME_DIR="${RUNTIME_DIR:-$APP_ROOT/runtime}"
+BACKUP_DIR="${BACKUP_DIR:-$APP_ROOT/backups}"
+
+INCLUDE_LOGS=false
+
+for arg in "$@"; do
+  case "$arg" in
+    --include-logs)
+      INCLUDE_LOGS=true
+      ;;
+    -h|--help)
+      echo "Usage: $0 [--include-logs]"
+      exit 0
+      ;;
+    *)
+      echo "[ERROR] Unknown argument: $arg" >&2
+      echo "Usage: $0 [--include-logs]" >&2
+      exit 1
+      ;;
+  esac
+done
+
+required_paths=(
+  "$RUNTIME_DIR/data"
+  "$RUNTIME_DIR/uploads"
+  "$RUNTIME_DIR/vector_store"
+)
+
+echo "Beichen Agent runtime backup"
+echo "Runtime directory: $RUNTIME_DIR"
+echo "Backup directory:  $BACKUP_DIR"
+
+for path in "${required_paths[@]}"; do
+  if [ ! -d "$path" ]; then
+    echo "[ERROR] Required runtime directory does not exist: $path" >&2
+    exit 1
+  fi
+done
+
+sudo mkdir -p "$BACKUP_DIR"
+
+timestamp="$(date +%Y%m%d-%H%M%S)"
+archive_name="beichen-runtime-$timestamp.tar.gz"
+archive_path="$BACKUP_DIR/$archive_name"
+
+tar_items=(
+  "data"
+  "uploads"
+  "vector_store"
+)
+
+if [ "$INCLUDE_LOGS" = true ]; then
+  if [ -d "$RUNTIME_DIR/logs" ]; then
+    tar_items+=("logs")
+  else
+    echo "[WARN] --include-logs was set, but $RUNTIME_DIR/logs does not exist. Logs will be skipped."
+  fi
+fi
+
+echo "Creating backup archive: $archive_path"
+sudo tar -czf "$archive_path" -C "$RUNTIME_DIR" "${tar_items[@]}"
+sudo chown www-data:www-data "$archive_path" 2>/dev/null || true
+
+echo "[OK] Runtime backup created."
+echo "Archive: $archive_path"
+echo "Included: ${tar_items[*]}"
+echo "Keep this archive private. It may contain uploaded documents, chunks, embeddings, and chat metadata."
+
