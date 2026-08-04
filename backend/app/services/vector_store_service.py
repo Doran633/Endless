@@ -125,9 +125,15 @@ class VectorStoreService:
             embedding_count=index.embedding_count,
             embedding_dimension=index.embedding_dimension,
             embedding_model=index.embedding_model,
-            storage_path=str(storage_path.relative_to(settings.backend_dir)),
+            storage_path=self._display_storage_path(storage_path),
             created_at=index.created_at,
         )
+
+    def _display_storage_path(self, storage_path: Path) -> str:
+        try:
+            return str(storage_path.relative_to(settings.backend_dir))
+        except ValueError:
+            return str(storage_path)
 
     def _mark_failed(self, file_id: str, error_message: str) -> None:
         try:
