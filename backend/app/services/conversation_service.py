@@ -31,55 +31,69 @@ class ConversationService:
     DEFAULT_CONTEXT_MESSAGE_LIMIT = 6
     MAX_CONTEXT_MESSAGE_CHARS = 1200
 
-    def answer_and_persist_chat(self, session_id: str, message: str) -> dict[str, object]:
-        self._ensure_session_exists(session_id)
+    def answer_and_persist_chat(
+        self, session_id: str, client_id: str, message: str
+    ) -> dict[str, object]:
+        self._ensure_session_exists(session_id, client_id)
 
-        context_messages = self._build_chat_context_messages(session_id, message)
+        context_messages = self._build_chat_context_messages(session_id, client_id, message)
         result = ChatService().answer_with_context(context_messages)
-        self._save_message(session_id=session_id, role="user", content=message)
+        self._save_message(session_id=session_id, client_id=client_id, role="user", content=message)
         self._save_message(
             session_id=session_id,
+            client_id=client_id,
             role="assistant",
             content=str(result["answer"]),
             metadata={
                 "token_count": self._sum_token_count(result.get("usage")),
             },
         )
-        self.maybe_update_session_title(session_id, message)
+        self.maybe_update_session_title(session_id, client_id, message)
         return result
 
     def ask_file_and_persist(
         self,
         *,
         session_id: str,
+        client_id: str,
         file_id: str,
         query: str,
         top_k: int,
     ) -> AskFileResponse:
-        self._ensure_session_exists(session_id)
-        rag_file_name = self._get_file_name(file_id)
-        conversation_context = self._build_recent_context_messages(session_id)
+        self._ensure_session_exists(session_id, client_id)
+        rag_file_name = self._get_file_name(file_id, client_id)
+        conversation_context = self._build_recent_context_messages(session_id, client_id)
 
         result = RagService().ask_file(
             file_id,
             query,
             top_k,
             conversation_context=conversation_context,
+            client_id=client_id,
         )
-        self._save_message(session_id=session_id, role="user", content=result.query)
         self._save_message(
             session_id=session_id,
+            client_id=client_id,
+            role="user",
+            content=result.query,
+        )
+        self._save_message(
+            session_id=session_id,
+            client_id=client_id,
             role="assistant",
             content=result.answer,
             metadata=self._build_rag_metadata(result, rag_file_name),
         )
-        self.maybe_update_session_title(session_id, result.query)
+        self.maybe_update_session_title(session_id, client_id, result.query)
         return result
 
-    def create_session(self, title: str = "新对话", mode: str = "chat") -> ChatSessionResponse:
+    def create_session(
+        self, client_id: str, title: str = DEFAULT_SESSION_TITLE, mode: str = "chat"
+    ) -> ChatSessionResponse:
         try:
             with SessionLocal() as db:
                 record = ChatRepository(db).create_session(
+                    client_id=client_id,
                     session_id=str(uuid4()),
                     title=title,
                     mode=mode,
@@ -88,23 +102,23 @@ class ConversationService:
         except SQLAlchemyError as exc:
             raise ChatSessionStorageError("Failed to create chat session") from exc
 
-    def list_sessions(self) -> ChatSessionListResponse:
+    def list_sessions(self, client_id: str) -> ChatSessionListResponse:
         try:
             with SessionLocal() as db:
-                records = ChatRepository(db).list_sessions()
+                records = ChatRepository(db).list_sessions(client_id)
                 return ChatSessionListResponse(
                     sessions=[self._to_session_response(record) for record in records]
                 )
         except SQLAlchemyError as exc:
             raise ChatSessionStorageError("Failed to list chat sessions") from exc
 
-    def get_messages(self, session_id: str) -> ChatMessageListResponse:
+    def get_messages(self, session_id: str, client_id: str) -> ChatMessageListResponse:
         try:
             with SessionLocal() as db:
                 repository = ChatRepository(db)
-                if repository.get_session(session_id) is None:
+                if repository.get_session(session_id, client_id) is None:
                     raise ChatSessionNotFoundError()
-                records = repository.list_messages(session_id)
+                records = repository.list_messages(session_id, client_id)
                 return ChatMessageListResponse(
                     session_id=session_id,
                     messages=[self._to_message_response(record) for record in records],
@@ -114,13 +128,13 @@ class ConversationService:
         except SQLAlchemyError as exc:
             raise ChatSessionStorageError("Failed to list chat messages") from exc
 
-    def delete_session(self, session_id: str) -> DeleteChatSessionResponse:
+    def delete_session(self, session_id: str, client_id: str) -> DeleteChatSessionResponse:
         try:
             with SessionLocal() as db:
                 repository = ChatRepository(db)
-                if repository.get_session(session_id) is None:
+                if repository.get_session(session_id, client_id) is None:
                     raise ChatSessionNotFoundError()
-                message_count = repository.delete_session(session_id)
+                message_count = repository.delete_session(session_id, client_id)
                 return DeleteChatSessionResponse(
                     session_id=session_id,
                     deleted=True,
@@ -131,26 +145,28 @@ class ConversationService:
         except SQLAlchemyError as exc:
             raise ChatSessionStorageError("Failed to delete chat session") from exc
 
-    def bind_file(self, session_id: str, file_id: str | None) -> ChatSessionResponse:
+    def bind_file(
+        self, session_id: str, client_id: str, file_id: str | None
+    ) -> ChatSessionResponse:
         try:
             with SessionLocal() as db:
                 chat_repository = ChatRepository(db)
-                if chat_repository.get_session(session_id) is None:
+                if chat_repository.get_session(session_id, client_id) is None:
                     raise ChatSessionNotFoundError()
 
                 if file_id is None:
-                    if not chat_repository.clear_bound_file(session_id):
+                    if not chat_repository.clear_bound_file(session_id, client_id):
                         raise ChatSessionNotFoundError()
                 else:
-                    file_record = FileRepository(db).get_file(file_id)
+                    file_record = FileRepository(db).get_file(file_id, client_id)
                     if file_record is None:
                         raise ChatFileBindingError("Cannot bind a missing file")
                     if file_record.status != "indexed":
                         raise ChatFileBindingError("Only indexed files can be bound to a session")
-                    if not chat_repository.update_bound_file(session_id, file_id):
+                    if not chat_repository.update_bound_file(session_id, client_id, file_id):
                         raise ChatSessionNotFoundError()
 
-                record = chat_repository.get_session(session_id)
+                record = chat_repository.get_session(session_id, client_id)
                 if record is None:
                     raise ChatSessionNotFoundError()
                 return self._to_session_response(record)
@@ -159,14 +175,16 @@ class ConversationService:
         except SQLAlchemyError as exc:
             raise ChatSessionStorageError("Failed to bind file to chat session") from exc
 
-    def clear_file_binding_for_deleted_file(self, file_id: str) -> int:
+    def clear_file_binding_for_deleted_file(self, file_id: str, client_id: str) -> int:
         try:
             with SessionLocal() as db:
-                return ChatRepository(db).clear_bound_file_for_file(file_id)
+                return ChatRepository(db).clear_bound_file_for_file(file_id, client_id)
         except SQLAlchemyError as exc:
             raise ChatSessionStorageError("Failed to clear deleted file bindings") from exc
 
-    def maybe_update_session_title(self, session_id: str, user_content: str) -> None:
+    def maybe_update_session_title(
+        self, session_id: str, client_id: str, user_content: str
+    ) -> None:
         auto_title = self._build_auto_title(user_content)
         if not auto_title:
             return
@@ -174,12 +192,12 @@ class ConversationService:
         try:
             with SessionLocal() as db:
                 repository = ChatRepository(db)
-                session = repository.get_session(session_id)
+                session = repository.get_session(session_id, client_id)
                 if session is None:
                     raise ChatSessionNotFoundError()
                 if session.title != self.DEFAULT_SESSION_TITLE:
                     return
-                if not repository.update_session_title(session_id, auto_title):
+                if not repository.update_session_title(session_id, client_id, auto_title):
                     raise ChatSessionNotFoundError()
         except ChatSessionNotFoundError:
             raise
@@ -194,41 +212,42 @@ class ConversationService:
             return normalized
         return f"{normalized[: self.MAX_AUTO_TITLE_LENGTH]}..."
 
-    def _ensure_session_exists(self, session_id: str) -> None:
+    def _ensure_session_exists(self, session_id: str, client_id: str) -> None:
         try:
             with SessionLocal() as db:
-                if ChatRepository(db).get_session(session_id) is None:
+                if ChatRepository(db).get_session(session_id, client_id) is None:
                     raise ChatSessionNotFoundError()
         except ChatSessionNotFoundError:
             raise
         except SQLAlchemyError as exc:
             raise ChatSessionStorageError("Failed to load chat session") from exc
 
-    def _build_chat_context_messages(self, session_id: str, current_message: str) -> list[ChatMessage]:
-        messages = self._build_recent_context_messages(session_id)
+    def _build_chat_context_messages(
+        self, session_id: str, client_id: str, current_message: str
+    ) -> list[ChatMessage]:
+        messages = self._build_recent_context_messages(session_id, client_id)
         messages.append(ChatMessage(role="user", content=current_message))
         return messages
 
-    def _build_recent_context_messages(self, session_id: str) -> list[ChatMessage]:
+    def _build_recent_context_messages(self, session_id: str, client_id: str) -> list[ChatMessage]:
         try:
             with SessionLocal() as db:
                 repository = ChatRepository(db)
-                if repository.get_session(session_id) is None:
+                if repository.get_session(session_id, client_id) is None:
                     raise ChatSessionNotFoundError()
                 records = repository.list_recent_messages(
-                    session_id, self.DEFAULT_CONTEXT_MESSAGE_LIMIT
+                    session_id, client_id, self.DEFAULT_CONTEXT_MESSAGE_LIMIT
                 )
         except ChatSessionNotFoundError:
             raise
         except SQLAlchemyError as exc:
             raise ChatSessionStorageError("Failed to load chat context") from exc
 
-        messages = [
+        return [
             self._to_context_message(record)
             for record in records
             if record.role in {"user", "assistant"} and record.content.strip()
         ]
-        return messages
 
     def _to_context_message(self, record: ChatMessageRecord) -> ChatMessage:
         return ChatMessage(
@@ -246,6 +265,7 @@ class ConversationService:
         self,
         *,
         session_id: str,
+        client_id: str,
         role: str,
         content: str,
         metadata: dict[str, object] | None = None,
@@ -253,24 +273,25 @@ class ConversationService:
         try:
             with SessionLocal() as db:
                 repository = ChatRepository(db)
-                if repository.get_session(session_id) is None:
+                if repository.get_session(session_id, client_id) is None:
                     raise ChatSessionNotFoundError()
                 repository.create_message(
                     message_id=str(uuid4()),
                     session_id=session_id,
+                    client_id=client_id,
                     role=role,
                     content=content,
                     metadata_json=self._dump_metadata(metadata),
                 )
-        except ChatSessionNotFoundError:
-            raise
+        except (ChatSessionNotFoundError, ValueError):
+            raise ChatSessionNotFoundError()
         except SQLAlchemyError as exc:
             raise ChatSessionStorageError("Failed to save chat message") from exc
 
-    def _get_file_name(self, file_id: str) -> str | None:
+    def _get_file_name(self, file_id: str, client_id: str) -> str | None:
         try:
             with SessionLocal() as db:
-                record = FileRepository(db).get_file(file_id)
+                record = FileRepository(db).get_file(file_id, client_id)
                 return record.original_name if record is not None else None
         except SQLAlchemyError as exc:
             raise ChatSessionStorageError("Failed to load RAG file metadata") from exc

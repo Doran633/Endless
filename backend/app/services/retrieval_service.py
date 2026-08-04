@@ -18,12 +18,14 @@ class RetrievalService:
         self.embedding_service = EmbeddingService(provider=embedding_provider)
         self.vector_store_service = vector_store_service or VectorStoreService()
 
-    def retrieve(self, file_id: str, query: str, top_k: int = 3) -> RetrieveFileResponse:
+    def retrieve(
+        self, file_id: str, query: str, top_k: int = 3, client_id: str | None = None
+    ) -> RetrieveFileResponse:
         normalized_query = query.strip()
         if not normalized_query:
             raise RetrievalError("Query is required")
 
-        index = self.vector_store_service.load_file_vectors(file_id)
+        index = self.vector_store_service.load_file_vectors(file_id, client_id)
         query_vector = self.embedding_service.provider.embed_texts([normalized_query])[0]
         if len(query_vector) != index.embedding_dimension:
             raise RetrievalError("Query vector dimension does not match stored vectors")

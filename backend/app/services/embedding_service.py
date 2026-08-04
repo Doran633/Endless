@@ -15,7 +15,9 @@ class EmbeddingService:
     def __init__(self, provider: EmbeddingProvider | None = None) -> None:
         self.provider = provider or self._create_provider()
 
-    def embed_chunks(self, file_id: str, chunks: list[DocumentChunk]) -> EmbedFileResponse:
+    def embed_chunks(
+        self, file_id: str, chunks: list[DocumentChunk], client_id: str
+    ) -> EmbedFileResponse:
         try:
             if not chunks:
                 raise EmbeddingProviderError("No chunks provided for embedding")
@@ -25,6 +27,7 @@ class EmbeddingService:
             with SessionLocal() as db:
                 FileRepository(db).update_embedded(
                     file_id,
+                    client_id,
                     chunk_count=len(chunks),
                     embedding_count=len(vectors),
                     embedding_dimension=dimension,
@@ -48,7 +51,7 @@ class EmbeddingService:
                 embedding_preview=previews,
             )
         except Exception as exc:
-            self._mark_failed(file_id, str(exc))
+            self._mark_failed(file_id, client_id, str(exc))
             raise
 
     def embed_chunk_vectors(self, chunks: list[DocumentChunk]) -> list[list[float]]:
@@ -62,11 +65,14 @@ class EmbeddingService:
         self._validate_vectors(vectors)
         return vectors
 
-    def embed_file_vectors(self, file_id: str, chunks: list[DocumentChunk]) -> list[list[float]]:
+    def embed_file_vectors(
+        self, file_id: str, chunks: list[DocumentChunk], client_id: str | None = None
+    ) -> list[list[float]]:
         try:
             return self.embed_chunk_vectors(chunks)
         except Exception as exc:
-            self._mark_failed(file_id, str(exc))
+            if client_id is not None:
+                self._mark_failed(file_id, client_id, str(exc))
             raise
 
     def _create_provider(self) -> EmbeddingProvider:
@@ -86,9 +92,9 @@ class EmbeddingService:
 
         return dimension
 
-    def _mark_failed(self, file_id: str, error_message: str) -> None:
+    def _mark_failed(self, file_id: str, client_id: str, error_message: str) -> None:
         try:
             with SessionLocal() as db:
-                FileRepository(db).touch_failed(file_id, error_message)
+                FileRepository(db).touch_failed(file_id, client_id, error_message)
         except Exception:
             pass

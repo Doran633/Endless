@@ -14,6 +14,7 @@ class FileRecord(Base):
     __tablename__ = "files"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    client_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     original_name: Mapped[str] = mapped_column(String(255), nullable=False)
     extension: Mapped[str] = mapped_column(String(32), nullable=False)
     size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -37,6 +38,7 @@ class ChatSessionRecord(Base):
     __tablename__ = "chat_sessions"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    client_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     title: Mapped[str] = mapped_column(String(255), nullable=False, default="新对话")
     mode: Mapped[str] = mapped_column(String(32), nullable=False, default="chat")
     bound_file_id: Mapped[str | None] = mapped_column(String(64), nullable=True)

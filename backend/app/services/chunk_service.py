@@ -9,11 +9,11 @@ class ChunkService:
     chunk_overlap = 120
     preview_limit = 3
 
-    def chunk_text(self, file_id: str, text: str) -> ChunkFileResponse:
+    def chunk_text(self, file_id: str, text: str, client_id: str) -> ChunkFileResponse:
         try:
             chunks = self.create_chunks(file_id, text)
             with SessionLocal() as db:
-                FileRepository(db).update_chunked(file_id, chunk_count=len(chunks))
+                FileRepository(db).update_chunked(file_id, client_id, chunk_count=len(chunks))
             return ChunkFileResponse(
                 file_id=file_id,
                 status="chunked",
@@ -21,7 +21,7 @@ class ChunkService:
                 chunk_preview=chunks[: self.preview_limit],
             )
         except Exception as exc:
-            self._mark_failed(file_id, str(exc))
+            self._mark_failed(file_id, client_id, str(exc))
             raise
 
     def create_chunks(self, file_id: str, text: str) -> list[DocumentChunk]:
@@ -35,17 +35,20 @@ class ChunkService:
 
         return chunks
 
-    def create_file_chunks(self, file_id: str, text: str) -> list[DocumentChunk]:
+    def create_file_chunks(
+        self, file_id: str, text: str, client_id: str | None = None
+    ) -> list[DocumentChunk]:
         try:
             return self.create_chunks(file_id, text)
         except Exception as exc:
-            self._mark_failed(file_id, str(exc))
+            if client_id is not None:
+                self._mark_failed(file_id, client_id, str(exc))
             raise
 
-    def _mark_failed(self, file_id: str, error_message: str) -> None:
+    def _mark_failed(self, file_id: str, client_id: str, error_message: str) -> None:
         try:
             with SessionLocal() as db:
-                FileRepository(db).touch_failed(file_id, error_message)
+                FileRepository(db).touch_failed(file_id, client_id, error_message)
         except Exception:
             pass
 

@@ -345,3 +345,30 @@ v1.0 鐩爣鏄瀯寤轰竴涓嫭绔嬬綉椤电増 AI 鍔╂墜銆?
 - 未实现 JWT 或 refresh token。
 - 未实现多用户权限隔离。
 - 未修改 RAG 主链路和数据库结构。
+# v1.6.3 状态更新
+
+当前阶段：Anonymous Client Isolation 匿名客户端隔离。
+
+本阶段新增：
+
+- 前端首次访问会生成匿名 `client_id`，保存到浏览器 `localStorage`。
+- 前端所有业务 API 请求会自动携带 `X-Beichen-Client-Id`。
+- 后端新增 `client_id` 请求头读取与校验。
+- `files` 表新增 `client_id` 字段，用于隔离文件列表、文件删除和文件处理状态。
+- `chat_sessions` 表新增 `client_id` 字段，用于隔离会话列表、会话删除、会话消息读取和当前会话绑定文件。
+- `chat_messages` 通过所属 `chat_sessions.client_id` 间接隔离。
+- 文件上传、解析、切块、embedding、vector-store、retrieval 和 RAG 问答均按当前 `client_id` 校验文件归属。
+- 普通聊天持久化、RAG 问答持久化、最近上下文读取和自动标题更新均按当前 `client_id` 校验会话归属。
+- SQLite 启动时包含轻量兼容处理：旧本地数据库若缺少 `client_id` 列，会补充 `legacy` 默认值，避免本地直接启动失败。
+
+本阶段边界：
+
+- 邀请码仍然只是访问门票，不是用户身份。
+- `client_id` 只是匿名数据空间，不是正式登录系统。
+- 不支持注册、账号、JWT、多用户权限、跨设备同步或正式用户审计。
+- 不修改 RAG 主链路，不新增多文件 RAG，不引入 pgvector。
+
+部署注意：
+
+- 公网试用环境建议在部署本版本后备份并清空旧共享历史记录，包括 SQLite 数据库、uploads 和 vector_store。
+- 清空旧数据后，不同浏览器或设备会拥有各自独立的文件、会话和消息记录。

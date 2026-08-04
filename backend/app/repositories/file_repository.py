@@ -14,6 +14,7 @@ class FileRepository:
     def create_uploaded_file(
         self,
         *,
+        client_id: str,
         file_id: str,
         original_name: str,
         extension: str,
@@ -22,6 +23,7 @@ class FileRepository:
     ) -> FileRecord:
         record = FileRecord(
             id=file_id,
+            client_id=client_id,
             original_name=original_name,
             extension=extension,
             size_bytes=size_bytes,
@@ -33,23 +35,33 @@ class FileRepository:
         self.db.refresh(record)
         return record
 
-    def list_files(self) -> list[FileRecord]:
-        statement = select(FileRecord).order_by(FileRecord.created_at.desc())
+    def list_files(self, client_id: str) -> list[FileRecord]:
+        statement = (
+            select(FileRecord)
+            .where(FileRecord.client_id == client_id)
+            .order_by(FileRecord.created_at.desc())
+        )
         return list(self.db.scalars(statement).all())
 
-    def get_file(self, file_id: str) -> FileRecord | None:
-        return self.db.get(FileRecord, file_id)
+    def get_file(self, file_id: str, client_id: str) -> FileRecord | None:
+        statement = select(FileRecord).where(
+            FileRecord.id == file_id,
+            FileRecord.client_id == client_id,
+        )
+        return self.db.scalars(statement).first()
 
-    def delete_file(self, file_id: str) -> bool:
-        record = self.get_file(file_id)
+    def delete_file(self, file_id: str, client_id: str) -> bool:
+        record = self.get_file(file_id, client_id)
         if record is None:
             return False
         self.db.delete(record)
         self.db.commit()
         return True
 
-    def update_parsed(self, file_id: str, *, text_preview: str, char_count: int) -> None:
-        record = self.db.get(FileRecord, file_id)
+    def update_parsed(
+        self, file_id: str, client_id: str, *, text_preview: str, char_count: int
+    ) -> None:
+        record = self.get_file(file_id, client_id)
         if record is None:
             return
         record.status = "ready"
@@ -59,8 +71,8 @@ class FileRepository:
         record.updated_at = datetime.now(timezone.utc)
         self.db.commit()
 
-    def update_chunked(self, file_id: str, *, chunk_count: int) -> None:
-        record = self.db.get(FileRecord, file_id)
+    def update_chunked(self, file_id: str, client_id: str, *, chunk_count: int) -> None:
+        record = self.get_file(file_id, client_id)
         if record is None:
             return
         record.status = "chunked"
@@ -72,13 +84,14 @@ class FileRepository:
     def update_embedded(
         self,
         file_id: str,
+        client_id: str,
         *,
         chunk_count: int,
         embedding_count: int,
         embedding_dimension: int,
         embedding_model: str,
     ) -> None:
-        record = self.db.get(FileRecord, file_id)
+        record = self.get_file(file_id, client_id)
         if record is None:
             return
         record.status = "embedded"
@@ -93,6 +106,7 @@ class FileRepository:
     def update_indexed(
         self,
         file_id: str,
+        client_id: str,
         *,
         chunk_count: int,
         embedding_count: int,
@@ -100,7 +114,7 @@ class FileRepository:
         embedding_model: str,
         vector_store_path: str,
     ) -> None:
-        record = self.db.get(FileRecord, file_id)
+        record = self.get_file(file_id, client_id)
         if record is None:
             return
         record.status = "indexed"
@@ -113,8 +127,8 @@ class FileRepository:
         record.updated_at = datetime.now(timezone.utc)
         self.db.commit()
 
-    def touch_failed(self, file_id: str, error_message: str) -> None:
-        record = self.db.get(FileRecord, file_id)
+    def touch_failed(self, file_id: str, client_id: str, error_message: str) -> None:
+        record = self.get_file(file_id, client_id)
         if record is None:
             return
         record.status = "failed"

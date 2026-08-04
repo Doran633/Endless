@@ -96,3 +96,8 @@ class ChatSessionStorageError(AppError):
 class ChatFileBindingError(AppError):
     def __init__(self, message: str = "Chat file binding failed") -> None:
         super().__init__(message=message, code=50003, status_code=400)
+
+
+class ClientIdError(AppError):
+    def __init__(self, message: str = "Client id is required") -> None:
+        super().__init__(message=message, code=51001, status_code=400)

@@ -11,15 +11,16 @@ class DocumentParserService:
     supported_extensions = {"txt", "docx", "pdf"}
     preview_limit = 800
 
-    def parse(self, file_id: str, extension: str) -> ParsedFileResponse:
+    def parse(self, file_id: str, extension: str, client_id: str) -> ParsedFileResponse:
         try:
             normalized_extension = extension.lower().lstrip(".")
-            normalized_text = self.parse_text(file_id, normalized_extension)
+            normalized_text = self.parse_text(file_id, normalized_extension, client_id)
             text_preview = self._build_preview(normalized_text)
 
             with SessionLocal() as db:
                 FileRepository(db).update_parsed(
                     file_id,
+                    client_id,
                     text_preview=text_preview,
                     char_count=len(normalized_text),
                 )
@@ -32,10 +33,10 @@ class DocumentParserService:
                 char_count=len(normalized_text),
             )
         except Exception as exc:
-            self._mark_failed(file_id, str(exc))
+            self._mark_failed(file_id, client_id, str(exc))
             raise
 
-    def parse_text(self, file_id: str, extension: str) -> str:
+    def parse_text(self, file_id: str, extension: str, client_id: str) -> str:
         try:
             normalized_extension = extension.lower().lstrip(".")
             if normalized_extension not in self.supported_extensions:
@@ -43,6 +44,7 @@ class DocumentParserService:
                     f"Unsupported parse file type. Allowed: {', '.join(sorted(self.supported_extensions))}"
                 )
 
+            self._ensure_file_owned(file_id, client_id)
             file_path = settings.upload_dir / f"{file_id}.{normalized_extension}"
             if not file_path.exists() or not file_path.is_file():
                 raise DocumentNotFoundError()
@@ -56,7 +58,7 @@ class DocumentParserService:
 
             return normalized_text
         except Exception as exc:
-            self._mark_failed(file_id, str(exc))
+            self._mark_failed(file_id, client_id, str(exc))
             raise
 
     def _parse_by_extension(self, file_path: Path, extension: str) -> str:
@@ -149,9 +151,14 @@ class DocumentParserService:
             return text
         return f"{text[:self.preview_limit]}..."
 
-    def _mark_failed(self, file_id: str, error_message: str) -> None:
+    def _ensure_file_owned(self, file_id: str, client_id: str) -> None:
+        with SessionLocal() as db:
+            if FileRepository(db).get_file(file_id, client_id) is None:
+                raise DocumentNotFoundError()
+
+    def _mark_failed(self, file_id: str, client_id: str, error_message: str) -> None:
         try:
             with SessionLocal() as db:
-                FileRepository(db).touch_failed(file_id, error_message)
+                FileRepository(db).touch_failed(file_id, client_id, error_message)
         except Exception:
             pass

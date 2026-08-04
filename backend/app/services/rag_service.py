@@ -23,12 +23,15 @@ class RagService:
         query: str,
         top_k: int = 3,
         conversation_context: list[ChatMessage] | None = None,
+        client_id: str | None = None,
     ) -> AskFileResponse:
         normalized_query = query.strip()
         if not normalized_query:
             raise RagError("Question is required")
 
-        retrieval = self.retrieval_service.retrieve(file_id, normalized_query, top_k)
+        retrieval = self.retrieval_service.retrieve(
+            file_id, normalized_query, top_k, client_id
+        )
         if not retrieval.results:
             raise RagError("No relevant chunks were found for this file")
 

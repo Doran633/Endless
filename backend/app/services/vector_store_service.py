@@ -23,6 +23,7 @@ class VectorStoreService:
     def save_file_vectors(
         self,
         file_id: str,
+        client_id: str,
         chunks: list[DocumentChunk],
         vectors: list[list[float]],
         embedding_model: str,
@@ -68,6 +69,7 @@ class VectorStoreService:
             with SessionLocal() as db:
                 FileRepository(db).update_indexed(
                     file_id,
+                    client_id,
                     chunk_count=result.chunk_count,
                     embedding_count=result.embedding_count,
                     embedding_dimension=result.embedding_dimension,
@@ -76,17 +78,19 @@ class VectorStoreService:
                 )
             return result
         except OSError as exc:
-            self._mark_failed(file_id, "Failed to write vector store index")
+            self._mark_failed(file_id, client_id, "Failed to write vector store index")
             raise VectorStoreError("Failed to write vector store index") from exc
         except Exception as exc:
-            self._mark_failed(file_id, str(exc))
+            self._mark_failed(file_id, client_id, str(exc))
             raise
 
-    def get_file_vector_summary(self, file_id: str) -> VectorStoreSummaryResponse:
-        index = self.load_file_vectors(file_id)
+    def get_file_vector_summary(self, file_id: str, client_id: str) -> VectorStoreSummaryResponse:
+        index = self.load_file_vectors(file_id, client_id)
         return self._build_summary(index, self._index_path(file_id))
 
-    def load_file_vectors(self, file_id: str) -> VectorStoreIndex:
+    def load_file_vectors(self, file_id: str, client_id: str | None = None) -> VectorStoreIndex:
+        if client_id is not None:
+            self._ensure_file_owned(file_id, client_id)
         storage_path = self._index_path(file_id)
         if not storage_path.exists() or not storage_path.is_file():
             raise VectorStoreNotFoundError()
@@ -135,9 +139,14 @@ class VectorStoreService:
         except ValueError:
             return str(storage_path)
 
-    def _mark_failed(self, file_id: str, error_message: str) -> None:
+    def _ensure_file_owned(self, file_id: str, client_id: str) -> None:
+        with SessionLocal() as db:
+            if FileRepository(db).get_file(file_id, client_id) is None:
+                raise VectorStoreNotFoundError()
+
+    def _mark_failed(self, file_id: str, client_id: str, error_message: str) -> None:
         try:
             with SessionLocal() as db:
-                FileRepository(db).touch_failed(file_id, error_message)
+                FileRepository(db).touch_failed(file_id, client_id, error_message)
         except Exception:
             pass

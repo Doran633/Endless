@@ -24,7 +24,7 @@ from app.services.conversation_service import ConversationService
 
 
 class FileService:
-    async def upload(self, file: UploadFile) -> UploadedFileResponse:
+    async def upload(self, file: UploadFile, client_id: str) -> UploadedFileResponse:
         original_name = Path(file.filename or "").name
         if not original_name:
             raise FileValidationError("File name is required")
@@ -40,6 +40,7 @@ class FileService:
         try:
             with SessionLocal() as db:
                 record = FileRepository(db).create_uploaded_file(
+                    client_id=client_id,
                     file_id=file_id,
                     original_name=original_name,
                     extension=extension,
@@ -58,15 +59,15 @@ class FileService:
             storage_path.unlink(missing_ok=True)
             raise FileStorageError("Failed to save file metadata") from exc
 
-    def list_files(self) -> FileListResponse:
+    def list_files(self, client_id: str) -> FileListResponse:
         with SessionLocal() as db:
-            records = FileRepository(db).list_files()
+            records = FileRepository(db).list_files(client_id)
             return FileListResponse(files=[self._to_file_response(record) for record in records])
 
-    def delete_file(self, file_id: str) -> DeleteFileResponse:
+    def delete_file(self, file_id: str, client_id: str) -> DeleteFileResponse:
         with SessionLocal() as db:
             repository = FileRepository(db)
-            record = repository.get_file(file_id)
+            record = repository.get_file(file_id, client_id)
             if record is None:
                 raise FileRecordNotFoundError()
 
@@ -76,9 +77,9 @@ class FileService:
             try:
                 original_deleted = self._delete_path(original_path)
                 vector_index_deleted = self._delete_path(vector_index_path)
-                if not repository.delete_file(file_id):
+                if not repository.delete_file(file_id, client_id):
                     raise FileRecordNotFoundError()
-                ConversationService().clear_file_binding_for_deleted_file(file_id)
+                ConversationService().clear_file_binding_for_deleted_file(file_id, client_id)
             except FileRecordNotFoundError:
                 raise
             except (OSError, SQLAlchemyError) as exc:
