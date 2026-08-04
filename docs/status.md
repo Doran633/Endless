@@ -4,7 +4,7 @@
 
 ## 1. 当前版本
 
-当前阶段：v1.7.2 Runtime Backup and Restore。
+当前阶段：v1.7.3 Backend Baseline Tests。
 
 上一稳定能力版本：v1.6.3 Anonymous Client Isolation。
 
@@ -104,6 +104,9 @@
 - VPS 部署指南。
 - Ubuntu VPS runtime 备份脚本模板。
 - Ubuntu VPS runtime 恢复脚本模板。
+- 后端 pytest 基础测试框架。
+- 后端开发测试依赖文件 `backend/requirements-dev.txt`。
+- 健康检查、访问保护、匿名 client_id、文件隔离和会话隔离基础测试。
 - `/health` 健康检查。
 - `/health/config` 非敏感配置健康检查。
 - request_id 日志。
@@ -230,8 +233,8 @@ v1.7 是 Production Hardening 阶段，目标不是新增 AI 能力，而是提�
 
 优先级顺序：
 
-1. 完成 v1.7.2 服务器备份与恢复方案验证。
-2. 进入 v1.7.3 后端基础测试。
-3. 进入 v1.7.4 前端错误提示优化。
-4. 备案通过后配置域名和 HTTPS。
-5. 小范围试用期间坚持部署前备份和部署后 smoke test。
+1. 完成 v1.7.3 后端基础测试验证。
+2. 进入 v1.7.4 前端错误提示和 request_id 展示优化。
+3. 备案通过后配置域名和 HTTPS。
+4. 小范围试用期间坚持部署前备份和部署后 smoke test。
+5. 后续逐步补充 RAG 集成测试和备份脚本服务器实测记录。
