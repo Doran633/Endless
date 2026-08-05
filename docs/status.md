@@ -4,7 +4,7 @@
 
 ## 1. 当前版本
 
-当前阶段：v1.7.5 Semi-Automated VPS Deploy。
+当前阶段：v1.8.2 RAG Evaluation Baseline。
 
 上一稳定能力版本：v1.6.3 Anonymous Client Isolation。
 
@@ -32,6 +32,7 @@
 - 会话侧边栏。
 - 普通聊天消息展示。
 - RAG 回答引用片段展示。
+- RAG Debug Trace 摘要展示。
 - 文件上传、处理状态和删除交互。
 - API client 自动携带访问邀请码和匿名 `client_id`。
 - 前端统一解析 API 错误，并在可用时展示 `request_id`。
@@ -75,6 +76,7 @@
 - 文件中心支持单文件问答。
 - 聊天侧支持基于当前会话最近 indexed 文件进行 RAG 问答。
 - RAG 问答支持当前会话内连续追问。
+- RAG 问答返回轻量 debug trace，包含检索分数摘要、命中片段、token 和置信度。
 
 ### 2.6 数据持久化
 
@@ -116,6 +118,9 @@
 - 可选文件日志配置。
 - GitHub Safety Check 文档。
 - 前端错误提示与 request_id 排查链路。
+- RAG 质量观测摘要，用于排查检索和回答质量。
+- RAG 人工测评工作表和测试用例模板。
+- RAG 切块参数和默认 top_k 配置入口。
 
 ## 3. 当前技术栈
 
@@ -238,8 +243,8 @@ v1.7 是 Production Hardening 阶段，目标不是新增 AI 能力，而是提�
 
 优先级顺序：
 
-1. 在 VPS 上实测 `deploy/scripts/deploy-vps.sh.example` 半自动部署脚本。
-2. 备案通过后配置域名和 HTTPS。
-3. 小范围试用期间坚持部署前备份和部署后 smoke test。
-4. 后续逐步补充 RAG 集成测试和备份脚本服务器实测记录。
-5. 继续观察真实试用中的错误类型，再决定是否需要更完整的前端日志或监控方案。
+1. 使用 `docs/rag_test_cases_template.csv` 建立 10-20 个固定 RAG 测试问题。
+2. 基于 `docs/rag_evaluation_worksheet.md` 记录 debug_trace 指标和人工评分。
+3. 进入 v1.8.3 Retrieval Threshold and No-answer，谨慎增加分数阈值和无答案处理。
+4. 备案通过后配置域名和 HTTPS。
+5. 小范围试用期间坚持部署前备份和部署后 smoke test。

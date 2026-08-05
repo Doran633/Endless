@@ -50,6 +50,9 @@ class Settings:
     upload_dir: Path = BACKEND_DIR / os.getenv("UPLOAD_DIR", "uploads")
     vector_store_dir: Path = BACKEND_DIR / os.getenv("VECTOR_STORE_DIR", "vector_store")
     max_upload_size_mb: int = int(os.getenv("MAX_UPLOAD_SIZE_MB", "20"))
+    chunk_size: int = int(os.getenv("CHUNK_SIZE", "800"))
+    chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "120"))
+    rag_default_top_k: int = int(os.getenv("RAG_DEFAULT_TOP_K", "3"))
     log_level: str = os.getenv("LOG_LEVEL", "INFO").upper()
     log_to_file: bool = os.getenv("LOG_TO_FILE", "false").strip().lower() in {
         "1",

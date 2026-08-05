@@ -19,6 +19,23 @@ interface MessageBubbleProps {
   message: Message;
 }
 
+function confidenceText(confidence?: string): string {
+  switch (confidence) {
+    case 'high':
+      return '高';
+    case 'medium':
+      return '中';
+    case 'low':
+      return '低';
+    default:
+      return '未知';
+  }
+}
+
+function formatScore(score?: number | null): string {
+  return typeof score === 'number' ? score.toFixed(4) : '-';
+}
+
 // ============================
 // Card renderers
 // ============================
@@ -646,6 +663,14 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
             <Text style={{ display: 'block', color: '#1f2a44', fontSize: 12, fontWeight: 600 }}>
               参考片段 · {message.metadata.rag_file_name || '当前文件'}
             </Text>
+            {message.metadata.debug_trace && (
+              <Text style={{ display: 'block', color: '#697386', fontSize: 11, marginTop: 6 }}>
+                检索质量：置信度 {confidenceText(message.metadata.debug_trace.confidence)} ·
+                命中 {message.metadata.debug_trace.retrieved_count} 个片段 · 最高相关度{' '}
+                {formatScore(message.metadata.debug_trace.max_score)} · Trace{' '}
+                {message.metadata.debug_trace.trace_id.slice(0, 8)}
+              </Text>
+            )}
             {message.metadata.used_chunks.map((chunk, index) => (
               <div
                 key={chunk.chunk_id}

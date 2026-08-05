@@ -13,7 +13,7 @@ import { ApiError, formatApiError } from '../api/http';
 import { useFileStore } from './fileStore';
 
 const INGESTING_STATUSES = ['uploading', 'parsing', 'chunking', 'embedding', 'indexing'];
-const DEFAULT_RAG_TOP_K = 3;
+const DEFAULT_RAG_TOP_K = Number(import.meta.env.VITE_RAG_DEFAULT_TOP_K || 3);
 
 interface SessionRagFile {
   fileId: string;
@@ -53,6 +53,7 @@ function normalizeMetadata(metadata?: ChatMessageMetadata | null): Message['meta
   return {
     ...metadata,
     rag_file_name: metadata.rag_file_name ?? undefined,
+    debug_trace: metadata.debug_trace ?? undefined,
     used_chunks: metadata.used_chunks?.map((chunk) => ({
       chunk_id: chunk.chunk_id,
       chunk_index: chunk.chunk_index,
@@ -244,6 +245,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         aiMetadata = {
           rag_file_id: ragResponse.file_id,
           rag_file_name: currentRagFile.fileName,
+          debug_trace: ragResponse.debug_trace ?? undefined,
           chunk_ids: ragResponse.used_chunks.map((chunk) => chunk.chunk_id),
           token_count: ragResponse.usage.output_tokens ?? undefined,
           used_chunks: ragResponse.used_chunks.map((chunk) => ({

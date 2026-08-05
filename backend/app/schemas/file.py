@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
 
+from app.core.config import settings
+
 
 class UploadedFileResponse(BaseModel):
     id: str
@@ -126,7 +128,7 @@ class VectorStoreSummaryResponse(BaseModel):
 
 class RetrieveFileRequest(BaseModel):
     query: str = Field(min_length=1)
-    top_k: int = Field(default=3, ge=1, le=10)
+    top_k: int = Field(default=settings.rag_default_top_k, ge=1, le=10)
 
 
 class RetrievalResult(BaseModel):
@@ -143,12 +145,32 @@ class RetrieveFileResponse(BaseModel):
     top_k: int
     result_count: int
     results: list[RetrievalResult]
+    max_score: float | None = None
+    min_score: float | None = None
+    average_score: float | None = None
 
 
 class AskFileRequest(BaseModel):
     query: str = Field(min_length=1)
-    top_k: int = Field(default=3, ge=1, le=8)
+    top_k: int = Field(default=settings.rag_default_top_k, ge=1, le=8)
     session_id: str | None = None
+
+
+class RagDebugTrace(BaseModel):
+    trace_id: str
+    file_id: str
+    query: str
+    top_k: int
+    retrieved_count: int
+    max_score: float | None = None
+    min_score: float | None = None
+    average_score: float | None = None
+    used_chunk_ids: list[str]
+    model: str
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    confidence: str
+    no_answer: bool
 
 
 class AskFileResponse(BaseModel):
@@ -161,3 +183,4 @@ class AskFileResponse(BaseModel):
     provider: str
     model: str
     usage: dict[str, int | None]
+    debug_trace: RagDebugTrace | None = None

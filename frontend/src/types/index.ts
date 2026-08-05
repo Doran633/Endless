@@ -29,6 +29,7 @@ export interface ChatMessageMetadata {
   token_count?: number;
   rag_file_id?: string;
   rag_file_name?: string | null;
+  debug_trace?: RagDebugTrace | null;
   used_chunks?: {
     chunk_id: string;
     chunk_index: number;
@@ -69,6 +70,7 @@ export interface Message {
     token_count?: number;
     rag_file_id?: string;
     rag_file_name?: string;
+    debug_trace?: RagDebugTrace;
     used_chunks?: {
       chunk_id: string;
       chunk_index: number;
@@ -109,6 +111,26 @@ export interface RetrieveFileResponse {
   top_k: number;
   result_count: number;
   results: RetrievalResult[];
+  max_score?: number | null;
+  min_score?: number | null;
+  average_score?: number | null;
+}
+
+export interface RagDebugTrace {
+  trace_id: string;
+  file_id: string;
+  query?: string;
+  top_k: number;
+  retrieved_count: number;
+  max_score?: number | null;
+  min_score?: number | null;
+  average_score?: number | null;
+  used_chunk_ids: string[];
+  model: string;
+  input_tokens?: number | null;
+  output_tokens?: number | null;
+  confidence: 'high' | 'medium' | 'low' | string;
+  no_answer: boolean;
 }
 
 export interface AskFileResponse {
@@ -124,6 +146,7 @@ export interface AskFileResponse {
     input_tokens?: number | null;
     output_tokens?: number | null;
   };
+  debug_trace?: RagDebugTrace | null;
 }
 
 export interface FileItem {

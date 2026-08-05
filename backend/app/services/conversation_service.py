@@ -303,7 +303,29 @@ class ConversationService:
             "rag_file_id": result.file_id,
             "rag_file_name": rag_file_name,
             "used_chunks": [self._chunk_to_metadata(chunk) for chunk in result.used_chunks],
+            "debug_trace": self._trace_to_metadata(result),
             "token_count": self._sum_token_count(result.usage),
+        }
+
+    def _trace_to_metadata(self, result: AskFileResponse) -> dict[str, object] | None:
+        if result.debug_trace is None:
+            return None
+
+        trace = result.debug_trace
+        return {
+            "trace_id": trace.trace_id,
+            "file_id": trace.file_id,
+            "top_k": trace.top_k,
+            "retrieved_count": trace.retrieved_count,
+            "max_score": trace.max_score,
+            "min_score": trace.min_score,
+            "average_score": trace.average_score,
+            "used_chunk_ids": trace.used_chunk_ids,
+            "model": trace.model,
+            "input_tokens": trace.input_tokens,
+            "output_tokens": trace.output_tokens,
+            "confidence": trace.confidence,
+            "no_answer": trace.no_answer,
         }
 
     def _chunk_to_metadata(self, chunk: RetrievalResult) -> dict[str, object]:

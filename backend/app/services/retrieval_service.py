@@ -44,6 +44,7 @@ class RetrievalService:
             scored_results,
             key=lambda result: (-result.score, result.chunk_index),
         )[:top_k]
+        scores = [result.score for result in ranked_results]
 
         return RetrieveFileResponse(
             file_id=file_id,
@@ -51,6 +52,9 @@ class RetrievalService:
             top_k=top_k,
             result_count=len(ranked_results),
             results=ranked_results,
+            max_score=max(scores) if scores else None,
+            min_score=min(scores) if scores else None,
+            average_score=round(sum(scores) / len(scores), 6) if scores else None,
         )
 
     def _cosine_similarity(self, a: list[float], b: list[float]) -> float:

@@ -1,0 +1,5 @@
+case_id,document_name,question_type,query,expected_answer,expected_evidence,expected_chunk_index,has_answer,actual_answer,retrieved_chunk_indexes,retrieved_chunk_ids,max_score,average_score,confidence,no_answer,input_tokens,output_tokens,retrieval_score,groundedness_score,citation_score,no_answer_score,notes
+RAG-001,example.docx,fact,"文档中的项目总预算是多少？","填写期望答案","填写应命中的原文依据或摘要",,yes,,,,,,,,,,,,,,
+RAG-002,example.docx,summary,"这个方案主要解决了哪些问题？","填写期望答案","填写应命中的原文依据或摘要",,yes,,,,,,,,,,,,,,
+RAG-003,example.docx,table,"表格中 Q2 的增长率是多少？","填写期望答案","填写应命中的表格行或单元格",,yes,,,,,,,,,,,,,,
+RAG-004,example.docx,no_answer,"文档有没有提到 2028 年海外投放计划？","根据当前文档内容无法确认","文档中无依据",,no,,,,,,,,,,,,,,

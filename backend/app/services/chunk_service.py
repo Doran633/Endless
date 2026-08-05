@@ -1,3 +1,4 @@
+from app.core.config import settings
 from app.core.errors import ChunkError
 from app.db.database import SessionLocal
 from app.repositories.file_repository import FileRepository
@@ -5,9 +6,11 @@ from app.schemas.file import ChunkFileResponse, DocumentChunk
 
 
 class ChunkService:
-    chunk_size = 800
-    chunk_overlap = 120
     preview_limit = 3
+
+    def __init__(self, chunk_size: int | None = None, chunk_overlap: int | None = None) -> None:
+        self.chunk_size = chunk_size or settings.chunk_size
+        self.chunk_overlap = chunk_overlap if chunk_overlap is not None else settings.chunk_overlap
 
     def chunk_text(self, file_id: str, text: str, client_id: str) -> ChunkFileResponse:
         try:

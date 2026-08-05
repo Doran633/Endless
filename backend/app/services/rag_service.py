@@ -1,7 +1,9 @@
+from uuid import uuid4
+
 from app.core.config import settings
 from app.core.errors import RagError
 from app.llm.base import ChatMessage
-from app.schemas.file import AskFileResponse, RetrievalResult
+from app.schemas.file import AskFileResponse, RagDebugTrace, RetrievalResult
 from app.services.llm_service import LLMService
 from app.services.retrieval_service import RetrievalService
 
@@ -52,6 +54,16 @@ class RagService:
                 ChatMessage(role="user", content=prompt),
             ]
         )
+        debug_trace = self._build_debug_trace(
+            file_id=file_id,
+            query=normalized_query,
+            top_k=top_k,
+            chunks=retrieval.results,
+            model=response.model,
+            input_tokens=response.input_tokens,
+            output_tokens=response.output_tokens,
+            no_answer=self._is_no_answer(response.content),
+        )
 
         return AskFileResponse(
             file_id=file_id,
@@ -66,7 +78,54 @@ class RagService:
                 "input_tokens": response.input_tokens,
                 "output_tokens": response.output_tokens,
             },
+            debug_trace=debug_trace,
         )
+
+    def _build_debug_trace(
+        self,
+        *,
+        file_id: str,
+        query: str,
+        top_k: int,
+        chunks: list[RetrievalResult],
+        model: str,
+        input_tokens: int | None,
+        output_tokens: int | None,
+        no_answer: bool,
+    ) -> RagDebugTrace:
+        scores = [chunk.score for chunk in chunks]
+        max_score = max(scores) if scores else None
+        min_score = min(scores) if scores else None
+        average_score = round(sum(scores) / len(scores), 6) if scores else None
+
+        return RagDebugTrace(
+            trace_id=str(uuid4()),
+            file_id=file_id,
+            query=query,
+            top_k=top_k,
+            retrieved_count=len(chunks),
+            max_score=max_score,
+            min_score=min_score,
+            average_score=average_score,
+            used_chunk_ids=[chunk.chunk_id for chunk in chunks],
+            model=model,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            confidence=self._classify_confidence(max_score),
+            no_answer=no_answer,
+        )
+
+    def _classify_confidence(self, max_score: float | None) -> str:
+        if max_score is None:
+            return "low"
+        if max_score >= 0.65:
+            return "high"
+        if max_score >= 0.45:
+            return "medium"
+        return "low"
+
+    def _is_no_answer(self, answer: str) -> bool:
+        return "无法确认" in answer or "未找到" in answer
 
     def _build_prompt(
         self,

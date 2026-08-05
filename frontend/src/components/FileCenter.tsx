@@ -64,6 +64,23 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function confidenceText(confidence?: string): string {
+  switch (confidence) {
+    case 'high':
+      return '高';
+    case 'medium':
+      return '中';
+    case 'low':
+      return '低';
+    default:
+      return '未知';
+  }
+}
+
+function formatScore(score?: number | null): string {
+  return typeof score === 'number' ? score.toFixed(4) : '-';
+}
+
 function FileIcon({ ext }: { ext: string }) {
   const style = { fontSize: 22 };
   switch (ext.toLowerCase()) {
@@ -762,6 +779,11 @@ export default function FileCenter() {
               <Text type="secondary">
                 Query: {retrievalResult.query} · 返回 {retrievalResult.result_count} 条
               </Text>
+              <Text type="secondary">
+                分数摘要：最高 {formatScore(retrievalResult.max_score)} · 最低{' '}
+                {formatScore(retrievalResult.min_score)} · 平均{' '}
+                {formatScore(retrievalResult.average_score)}
+              </Text>
               {retrievalResult.results.map((result, index) => (
                 <div
                   key={result.chunk_id}
@@ -846,6 +868,32 @@ export default function FileCenter() {
               <Text type="secondary">
                 参考片段：{qaResult.used_chunk_count} · Provider: {qaResult.provider}
               </Text>
+              {qaResult.debug_trace && (
+                <div
+                  style={{
+                    border: '1px solid #d6e4ff',
+                    borderRadius: 8,
+                    padding: 12,
+                    background: '#f0f5ff',
+                  }}
+                >
+                  <Text strong style={{ fontSize: 13 }}>
+                    RAG 质量摘要
+                  </Text>
+                  <Text type="secondary" style={{ display: 'block', marginTop: 6 }}>
+                    Trace {qaResult.debug_trace.trace_id.slice(0, 8)} · 置信度{' '}
+                    {confidenceText(qaResult.debug_trace.confidence)} · 命中{' '}
+                    {qaResult.debug_trace.retrieved_count} 个片段 · 最高相关度{' '}
+                    {formatScore(qaResult.debug_trace.max_score)} · 平均相关度{' '}
+                    {formatScore(qaResult.debug_trace.average_score)}
+                  </Text>
+                  <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+                    Tokens: input {qaResult.debug_trace.input_tokens ?? '-'} / output{' '}
+                    {qaResult.debug_trace.output_tokens ?? '-'} · 无答案判断：
+                    {qaResult.debug_trace.no_answer ? '是' : '否'}
+                  </Text>
+                </div>
+              )}
               {qaResult.used_chunks.map((chunk, index) => (
                 <div
                   key={chunk.chunk_id}
