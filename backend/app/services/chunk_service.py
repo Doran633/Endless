@@ -13,14 +13,18 @@ class TextSection:
     title: str | None
     path: str | None
     content: str
+    level: int | None = None
 
 
 class ChunkService:
     preview_limit = 3
+    summary_child_limit = 8
+    summary_line_limit = 5
+    summary_line_chars = 160
     heading_patterns = (
         re.compile(r"^(#{1,6})\s+(.+)$"),
-        re.compile(r"^([一二三四五六七八九十百]+)、\s*(.+)$"),
-        re.compile(r"^(\d+)[.、]\s*(.+)$"),
+        re.compile(r"^([\u4e00-\u9fff]{1,8})\u3001\s*(.+)$"),
+        re.compile(r"^(\d+)[.\u3001]\s*(.+)$"),
     )
 
     def __init__(self, chunk_size: int | None = None, chunk_overlap: int | None = None) -> None:
@@ -85,6 +89,7 @@ class ChunkService:
             start_index=0,
             section_title=None,
             section_path=None,
+            chunk_type="normal",
         )
 
     def _split_sections(self, text: str) -> list[TextSection]:
@@ -92,6 +97,7 @@ class ChunkService:
         current_lines: list[str] = []
         current_title: str | None = None
         current_path: str | None = None
+        current_level: int | None = None
         path_by_level: dict[int, str] = {}
 
         for line in text.split("\n"):
@@ -106,6 +112,7 @@ class ChunkService:
                         title=current_title,
                         path=current_path,
                         content="\n".join(current_lines).strip(),
+                        level=current_level,
                     )
                 )
 
@@ -117,6 +124,7 @@ class ChunkService:
             }
             path_by_level[level] = title
             current_title = title
+            current_level = level
             current_path = " > ".join(
                 path_by_level[item_level] for item_level in sorted(path_by_level)
             )
@@ -129,6 +137,7 @@ class ChunkService:
                     title=current_title,
                     path=current_path,
                     content="\n".join(current_lines).strip(),
+                    level=current_level,
                 )
             )
 
@@ -144,7 +153,7 @@ class ChunkService:
             return len(markdown_match.group(1)), markdown_match.group(2).strip()
 
         chinese_match = self.heading_patterns[1].match(stripped)
-        if chinese_match:
+        if chinese_match and len(stripped) <= 80:
             return 1, chinese_match.group(2).strip()
 
         numbered_match = self.heading_patterns[2].match(stripped)
@@ -156,7 +165,7 @@ class ChunkService:
     def _split_sections_into_chunks(
         self, file_id: str, sections: list[TextSection]
     ) -> list[DocumentChunk]:
-        chunks: list[DocumentChunk] = []
+        chunks = self._create_summary_chunks(file_id, sections)
         for section in sections:
             section_chunks = self._split_content(
                 file_id=file_id,
@@ -164,9 +173,82 @@ class ChunkService:
                 start_index=len(chunks),
                 section_title=section.title,
                 section_path=section.path,
+                chunk_type="normal",
             )
             chunks.extend(section_chunks)
         return chunks
+
+    def _create_summary_chunks(
+        self, file_id: str, sections: list[TextSection]
+    ) -> list[DocumentChunk]:
+        summaries: list[DocumentChunk] = []
+        for root_title in self._root_titles(sections):
+            summary = self._build_section_summary(root_title, sections)
+            if summary is None:
+                continue
+            summaries.append(
+                DocumentChunk(
+                    chunk_id=f"{file_id}-{len(summaries)}",
+                    file_id=file_id,
+                    chunk_index=len(summaries),
+                    content=summary,
+                    char_count=len(summary),
+                    section_title=root_title,
+                    section_path=root_title,
+                    chunk_type="section_summary",
+                )
+            )
+        return summaries
+
+    def _root_titles(self, sections: list[TextSection]) -> list[str]:
+        roots: list[str] = []
+        for section in sections:
+            if not section.path:
+                continue
+            root = section.path.split(" > ", 1)[0]
+            if root not in roots:
+                roots.append(root)
+        return roots
+
+    def _build_section_summary(
+        self, root_title: str, sections: list[TextSection]
+    ) -> str | None:
+        related_sections = [
+            section
+            for section in sections
+            if section.path == root_title or (section.path or "").startswith(f"{root_title} > ")
+        ]
+        child_titles = [
+            section.title
+            for section in related_sections
+            if section.title and section.title != root_title
+        ][: self.summary_child_limit]
+        key_lines = self._summary_key_lines(related_sections)
+
+        if len(child_titles) < 2 and len(key_lines) < 2:
+            return None
+
+        lines = [f"Section Summary: {root_title}"]
+        if child_titles:
+            lines.append("Subsections:")
+            lines.extend(f"- {title}" for title in child_titles)
+        if key_lines:
+            lines.append("Key lines:")
+            lines.extend(f"- {line}" for line in key_lines)
+
+        return "\n".join(lines)
+
+    def _summary_key_lines(self, sections: list[TextSection]) -> list[str]:
+        lines: list[str] = []
+        for section in sections:
+            for raw_line in section.content.split("\n"):
+                line = raw_line.strip()
+                if not line or self._parse_heading(line):
+                    continue
+                lines.append(line[: self.summary_line_chars])
+                if len(lines) >= self.summary_line_limit:
+                    return lines
+        return lines
 
     def _split_content(
         self,
@@ -176,6 +258,7 @@ class ChunkService:
         start_index: int,
         section_title: str | None,
         section_path: str | None,
+        chunk_type: str,
     ) -> list[DocumentChunk]:
         chunks: list[DocumentChunk] = []
         start = 0
@@ -194,6 +277,7 @@ class ChunkService:
                         char_count=len(chunk_content),
                         section_title=section_title,
                         section_path=section_path,
+                        chunk_type=chunk_type,
                     )
                 )
                 index += 1

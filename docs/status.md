@@ -4,11 +4,9 @@
 
 ## 1. 当前版本
 
-当前阶段：v1.8.4 Retrieval Precision Tuning。
+当前阶段：v1.8.7 RAG Prompt Strictness and No-answer Policy。
 
-项目定位：
-
-北辰agent 是一个面向小范围可信试用的独立网页版 AI 助手 MVP，核心能力包括普通聊天、文件上传、文档解析、单文件 RAG 问答、会话持久化、匿名用户隔离和基础部署运维。
+项目定位：北辰agent 是一个面向小范围可信试用的独立网页版 AI 助手 MVP，核心能力包括普通聊天、文件上传、文档解析、单文件 RAG 问答、会话持久化、匿名用户隔离、邀请码访问保护和基础部署运维。
 
 当前部署状态：
 
@@ -30,7 +28,8 @@
 - 文件上传、自动处理、状态展示和删除交互。
 - 文件中心单文件检索和 RAG 问答。
 - 聊天侧基于当前会话绑定文件进行 RAG 问答。
-- RAG 引用片段、相关度和 debug trace 摘要展示。
+- RAG 引用片段、相关度、Section、chunk_type、ranking_reason 和 debug trace 展示。
+- RAG 质量摘要展示 answer_policy 和 no_answer_reason。
 - API client 自动携带邀请码和匿名 client_id。
 - 前端统一解析 API 错误，并在可用时展示 request_id。
 
@@ -46,24 +45,34 @@
 - 本地 JSON VectorStore。
 - request_id 日志链路。
 - `/health` 和 `/health/config` 健康检查。
+- 邀请码访问保护。
+- 匿名 client_id 数据隔离。
 
-### 2.3 文件和 RAG
+### 2.3 文件处理和 RAG
 
 - TXT 解析。
 - DOCX 段落解析。
 - DOCX 表格文本解析。
-- 可复制文本型 PDF 解析。
-- 文本切块。
+- 文本型 PDF 解析。
+- 固定长度切块 fallback。
 - 标题感知切块。
-- chunk metadata 支持 `section_title` 和 `section_path`。
-- embedding 生成。
+- section_summary chunk。
+- chunk metadata 支持 `section_title`、`section_path` 和 `chunk_type`。
+- OpenAI-compatible embedding 生成。
 - 本地向量索引保存。
 - cosine similarity 单文件检索。
-- score threshold、relative score gap 和 keyword bonus 检索调优。
-- 检索结果返回 raw_score、keyword_bonus、final_score 和 relevance_level。
+- score threshold、relative score gap 和 keyword bonus。
+- query intent 识别，包括 overview、capability、limit、deployment、usage、quantity、general。
+- section boost / penalty。
+- short chunk length penalty。
+- 数值型问题 answerability bonus。
+- RetrievalResult 返回 raw_score、keyword_bonus、final_score、relevance_level、query_intent 和 ranking_reason。
 - 单文件 RAG 问答。
 - RAG 连续追问使用当前会话短上下文。
-- RAG debug trace 返回 trace_id、score 摘要、token 和无答案判断。
+- RAG prompt 已要求模型只基于检索片段回答。
+- answer_policy 支持 grounded_answer、low_confidence_answer、no_answer。
+- no_answer_reason 支持 empty_retrieval、low_score、weak_chunks、model_refusal。
+- RAG debug trace 返回 trace_id、score 摘要、token、confidence、no_answer 和 answer_policy。
 - RAG 人工测评工作表和测试用例模板。
 
 ### 2.4 数据持久化和隔离
@@ -166,7 +175,7 @@ AI 和 RAG：
 
 ### 6.1 RAG 质量风险
 
-当前 RAG 已具备可用闭环，但检索质量仍处于持续优化阶段。v1.8.3 已增加标题感知切块和 section metadata，v1.8.4 已增加 score threshold、relative score gap、keyword bonus 和高/中/弱相关标记，用于减少弱相关噪声片段进入 RAG prompt。后续仍需要继续评估无答案策略、overview 问题处理和更高级的 rerank 方案。
+当前 RAG 已具备可用闭环，但检索质量仍处于优化阶段。v1.8 已陆续增加标题感知切块、section metadata、检索评分诊断、query intent、summary chunk 和严格 no-answer policy。后续仍需要继续用固定测试文档记录 Top-1 Accuracy、Citation Score、No-answer Accuracy 和噪声片段比例。
 
 ### 6.2 数据风险
 
@@ -174,7 +183,7 @@ SQLite、uploads 和 vector_store 是当前核心运行时数据。部署更新�
 
 ### 6.3 部署风险
 
-当前部署仍以单机手动或半自动脚本为主。每次更新需要确认代码拉取、后端重启、前端 build、Nginx reload、health 检查和 smoke test。
+当前部署仍以单机半自动脚本为主。每次更新需要确认代码拉取、后端重启、前端 build、Nginx reload、health 检查和 smoke test。
 
 ### 6.4 安全风险
 
@@ -184,8 +193,7 @@ SQLite、uploads 和 vector_store 是当前核心运行时数据。部署更新�
 
 优先级建议：
 
-1. 使用固定测试文档重新索引，比较 v1.8.2、v1.8.3 和 v1.8.4 的 Top-1 Accuracy、Citation Score 和噪声片段比例。
-2. 根据测评结果微调 `RAG_SCORE_THRESHOLD`、`RAG_RELATIVE_SCORE_GAP` 和 `RAG_KEYWORD_BONUS_MAX`。
-3. 进入 v1.8.5 RAG Prompt and No-answer Improvement，强化基于资料回答和无答案处理。
-4. 备案通过后配置域名和 HTTPS。
-5. 在 RAG 质量稳定后，再规划正式账号密码登录系统。
+1. 使用固定测试文档重新索引并测评 v1.8.7 的 No-answer Accuracy 和 Citation Score。
+2. 对比 v1.8.2 到 v1.8.7 的 Top-1 Accuracy、Citation Score 和噪声片段比例。
+3. 备案通过后配置域名、HTTPS 和正式 Nginx server_name。
+4. RAG 质量稳定后，再规划正式账号密码登录系统。

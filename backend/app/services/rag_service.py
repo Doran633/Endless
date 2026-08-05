@@ -11,6 +11,10 @@ from app.services.retrieval_service import RetrievalService
 class RagService:
     """Answer questions from one indexed file using retrieval context and an LLM."""
 
+    no_answer_text = "\u6839\u636e\u5f53\u524d\u6587\u6863\u5185\u5bb9\u65e0\u6cd5\u786e\u8ba4\u3002"
+    no_answer_score_threshold = 0.45
+    low_confidence_score_threshold = 0.55
+
     def __init__(
         self,
         retrieval_service: RetrievalService | None = None,
@@ -35,12 +39,29 @@ class RagService:
             file_id, normalized_query, top_k, client_id
         )
         if not retrieval.results:
-            raise RagError("No relevant chunks were found for this file")
+            return self._no_answer_response(
+                file_id=file_id,
+                query=normalized_query,
+                top_k=top_k,
+                chunks=[],
+                reason="empty_retrieval",
+            )
+
+        answer_policy, no_answer_reason = self._decide_answer_policy(retrieval.results)
+        if answer_policy == "no_answer":
+            return self._no_answer_response(
+                file_id=file_id,
+                query=normalized_query,
+                top_k=top_k,
+                chunks=retrieval.results,
+                reason=no_answer_reason or "low_score",
+            )
 
         prompt = self._build_prompt(
             normalized_query,
             retrieval.results,
             conversation_context or [],
+            answer_policy,
         )
         response = self.llm_service.chat(
             [
@@ -48,12 +69,17 @@ class RagService:
                     role="system",
                     content=(
                         "You are Beichen Agent, a careful document question-answering "
-                        "assistant. Answer only from the provided document chunks."
+                        "assistant. Answer only from the provided document chunks. "
+                        "If the chunks do not contain enough evidence, say that the "
+                        "current document cannot confirm the answer."
                     ),
                 ),
                 ChatMessage(role="user", content=prompt),
             ]
         )
+        model_no_answer = self._is_no_answer(response.content)
+        final_policy = "no_answer" if model_no_answer else answer_policy
+        final_reason = "model_refusal" if model_no_answer else no_answer_reason
         debug_trace = self._build_debug_trace(
             file_id=file_id,
             query=normalized_query,
@@ -62,7 +88,9 @@ class RagService:
             model=response.model,
             input_tokens=response.input_tokens,
             output_tokens=response.output_tokens,
-            no_answer=self._is_no_answer(response.content),
+            no_answer=model_no_answer,
+            answer_policy=final_policy,
+            no_answer_reason=final_reason,
         )
 
         return AskFileResponse(
@@ -79,7 +107,62 @@ class RagService:
                 "output_tokens": response.output_tokens,
             },
             debug_trace=debug_trace,
+            answer_policy=final_policy,
+            no_answer_reason=final_reason,
         )
+
+    def _no_answer_response(
+        self,
+        *,
+        file_id: str,
+        query: str,
+        top_k: int,
+        chunks: list[RetrievalResult],
+        reason: str,
+    ) -> AskFileResponse:
+        debug_trace = self._build_debug_trace(
+            file_id=file_id,
+            query=query,
+            top_k=top_k,
+            chunks=chunks,
+            model=settings.llm_model,
+            input_tokens=0,
+            output_tokens=0,
+            no_answer=True,
+            answer_policy="no_answer",
+            no_answer_reason=reason,
+        )
+        return AskFileResponse(
+            file_id=file_id,
+            query=query,
+            answer=self.no_answer_text,
+            top_k=top_k,
+            used_chunk_count=len(chunks),
+            used_chunks=chunks,
+            provider=settings.llm_provider,
+            model=settings.llm_model,
+            usage={"input_tokens": 0, "output_tokens": 0},
+            debug_trace=debug_trace,
+            answer_policy="no_answer",
+            no_answer_reason=reason,
+        )
+
+    def _decide_answer_policy(self, chunks: list[RetrievalResult]) -> tuple[str, str | None]:
+        if not chunks:
+            return "no_answer", "empty_retrieval"
+
+        scores = [chunk.score for chunk in chunks]
+        max_score = max(scores)
+        if max_score < self.no_answer_score_threshold:
+            return "no_answer", "low_score"
+
+        if all(chunk.relevance_level == "weak" for chunk in chunks):
+            return "low_confidence_answer", "weak_chunks"
+
+        if max_score < self.low_confidence_score_threshold:
+            return "low_confidence_answer", "low_score"
+
+        return "grounded_answer", None
 
     def _build_debug_trace(
         self,
@@ -92,6 +175,8 @@ class RagService:
         input_tokens: int | None,
         output_tokens: int | None,
         no_answer: bool,
+        answer_policy: str,
+        no_answer_reason: str | None,
     ) -> RagDebugTrace:
         scores = [chunk.score for chunk in chunks]
         max_score = max(scores) if scores else None
@@ -113,6 +198,8 @@ class RagService:
             output_tokens=output_tokens,
             confidence=self._classify_confidence(max_score),
             no_answer=no_answer,
+            answer_policy=answer_policy,
+            no_answer_reason=no_answer_reason,
         )
 
     def _classify_confidence(self, max_score: float | None) -> str:
@@ -125,26 +212,29 @@ class RagService:
         return "low"
 
     def _is_no_answer(self, answer: str) -> bool:
-        return "无法确认" in answer or "未找到" in answer
+        return (
+            "\u65e0\u6cd5\u786e\u8ba4" in answer
+            or "\u672a\u627e\u5230" in answer
+            or "\u6ca1\u6709\u8db3\u591f" in answer
+        )
 
     def _build_prompt(
         self,
         query: str,
         chunks: list[RetrievalResult],
-        conversation_context: list[ChatMessage] | None = None,
+        conversation_context: list[ChatMessage] | None,
+        answer_policy: str,
     ) -> str:
         context_blocks = []
         for index, chunk in enumerate(chunks, start=1):
-            section_label = (
-                f" | section={chunk.section_path}" if chunk.section_path else ""
-            )
-            # Keep the prompt format explicit so early RAG behavior is easy to inspect.
+            section_label = f" | section={chunk.section_path}" if chunk.section_path else ""
+            type_label = f" | type={chunk.chunk_type}" if chunk.chunk_type else ""
             context_blocks.append(
                 "\n".join(
                     [
                         (
                             f"[Chunk {index} | chunk_index={chunk.chunk_index} "
-                            f"| score={chunk.score}{section_label}]"
+                            f"| score={chunk.score}{type_label}{section_label}]"
                         ),
                         chunk.content,
                     ]
@@ -153,22 +243,34 @@ class RagService:
 
         context = "\n\n".join(context_blocks)
         conversation = self._format_conversation_context(conversation_context or [])
+        caution = (
+            "\u672c\u6b21\u68c0\u7d22\u7f6e\u4fe1\u5ea6\u504f\u4f4e\uff0c"
+            "\u5982\u679c\u7247\u6bb5\u4e0d\u80fd\u76f4\u63a5\u652f\u6491\u7b54\u6848\uff0c"
+            "\u5fc5\u987b\u56de\u7b54\u201c\u6839\u636e\u5f53\u524d\u6587\u6863\u5185\u5bb9\u65e0\u6cd5\u786e\u8ba4\u201d\u3002\n"
+            if answer_policy == "low_confidence_answer"
+            else ""
+        )
         return (
-            "请只根据下面提供的文档片段回答用户问题。\n"
-            "如果文档片段中没有足够信息，请明确说明“根据当前文档内容无法确认”。\n"
-            "不要编造文档中不存在的信息。\n\n"
-            f"文档片段：\n{context}\n\n"
-            f"最近对话上下文：\n{conversation}\n\n"
-            f"当前问题：\n{query}\n\n"
-            "请用中文回答，回答要简洁、准确，并尽量说明依据来自哪些片段。"
+            "\u4f60\u662f\u5317\u8fb0agent\u7684\u6587\u6863\u95ee\u7b54\u6a21\u5757\u3002\n"
+            "\u8bf7\u4e25\u683c\u9075\u5b88\u4ee5\u4e0b\u89c4\u5219\uff1a\n"
+            "1. \u53ea\u80fd\u6839\u636e\u63d0\u4f9b\u7684\u6587\u6863 chunks \u56de\u7b54\u3002\n"
+            "2. \u4e0d\u8981\u4f7f\u7528\u5916\u90e8\u5e38\u8bc6\u6216\u81ea\u884c\u731c\u6d4b\u8865\u5168\u7b54\u6848\u3002\n"
+            "3. \u5982\u679c chunks \u4e0d\u8db3\u4ee5\u652f\u6491\u7b54\u6848\uff0c\u5fc5\u987b\u56de\u7b54"
+            "\u201c\u6839\u636e\u5f53\u524d\u6587\u6863\u5185\u5bb9\u65e0\u6cd5\u786e\u8ba4\u201d\u3002\n"
+            "4. \u5982\u679c\u80fd\u56de\u7b54\uff0c\u8bf7\u5c3d\u91cf\u6807\u6ce8\u4f9d\u636e\u6765\u81ea\u54ea\u4e9b Chunk\u3002\n"
+            f"{caution}\n"
+            f"\u6587\u6863 chunks\uff1a\n{context}\n\n"
+            f"\u6700\u8fd1\u5bf9\u8bdd\u4e0a\u4e0b\u6587\uff1a\n{conversation}\n\n"
+            f"\u5f53\u524d\u95ee\u9898\uff1a\n{query}\n\n"
+            "\u8bf7\u7528\u4e2d\u6587\u56de\u7b54\uff0c\u4fdd\u6301\u7b80\u6d01\u3001\u51c6\u786e\u3001\u6709\u4f9d\u636e\u3002"
         )
 
     def _format_conversation_context(self, messages: list[ChatMessage]) -> str:
         if not messages:
-            return "无"
+            return "\u65e0"
 
         lines = []
         for message in messages:
-            role = "用户" if message.role == "user" else "北辰agent"
+            role = "\u7528\u6237" if message.role == "user" else "\u5317\u8fb0agent"
             lines.append(f"{role}: {message.content}")
         return "\n".join(lines)

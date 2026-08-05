@@ -39,10 +39,17 @@ export interface ChatMessageMetadata {
     char_count?: number;
     section_title?: string | null;
     section_path?: string | null;
+    chunk_type?: 'normal' | 'section_summary' | string;
     raw_score?: number | null;
     keyword_bonus?: number;
     final_score?: number | null;
     relevance_level?: 'high' | 'medium' | 'weak' | string;
+    query_intent?: string;
+    section_boost?: number;
+    section_penalty?: number;
+    length_penalty?: number;
+    answerability_bonus?: number;
+    ranking_reason?: string[];
   }[];
   cards?: MessageCard[];
 }
@@ -85,10 +92,17 @@ export interface Message {
       char_count?: number;
       section_title?: string | null;
       section_path?: string | null;
+      chunk_type?: 'normal' | 'section_summary' | string;
       raw_score?: number | null;
       keyword_bonus?: number;
       final_score?: number | null;
       relevance_level?: 'high' | 'medium' | 'weak' | string;
+      query_intent?: string;
+      section_boost?: number;
+      section_penalty?: number;
+      length_penalty?: number;
+      answerability_bonus?: number;
+      ranking_reason?: string[];
     }[];
     cards?: MessageCard[];
   };
@@ -103,10 +117,17 @@ export interface DocumentChunk {
   char_count: number;
   section_title?: string | null;
   section_path?: string | null;
+  chunk_type?: 'normal' | 'section_summary' | string;
   raw_score?: number | null;
   keyword_bonus?: number;
   final_score?: number | null;
   relevance_level?: 'high' | 'medium' | 'weak' | string;
+  query_intent?: string;
+  section_boost?: number;
+  section_penalty?: number;
+  length_penalty?: number;
+  answerability_bonus?: number;
+  ranking_reason?: string[];
 }
 
 export interface EmbeddingPreview {
@@ -123,10 +144,17 @@ export interface RetrievalResult {
   score: number;
   section_title?: string | null;
   section_path?: string | null;
+  chunk_type?: 'normal' | 'section_summary' | string;
   raw_score?: number | null;
   keyword_bonus?: number;
   final_score?: number | null;
   relevance_level?: 'high' | 'medium' | 'weak' | string;
+  query_intent?: string;
+  section_boost?: number;
+  section_penalty?: number;
+  length_penalty?: number;
+  answerability_bonus?: number;
+  ranking_reason?: string[];
 }
 
 export interface RetrieveFileResponse {
@@ -155,6 +183,8 @@ export interface RagDebugTrace {
   output_tokens?: number | null;
   confidence: 'high' | 'medium' | 'low' | string;
   no_answer: boolean;
+  answer_policy?: 'grounded_answer' | 'low_confidence_answer' | 'no_answer' | string;
+  no_answer_reason?: string | null;
 }
 
 export interface AskFileResponse {
@@ -171,6 +201,8 @@ export interface AskFileResponse {
     output_tokens?: number | null;
   };
   debug_trace?: RagDebugTrace | null;
+  answer_policy?: string;
+  no_answer_reason?: string | null;
 }
 
 export interface FileItem {

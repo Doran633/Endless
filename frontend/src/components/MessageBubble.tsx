@@ -32,6 +32,13 @@ function confidenceText(confidence?: string): string {
   }
 }
 
+function answerPolicyText(policy?: string): string {
+  if (policy === 'grounded_answer') return 'Grounded';
+  if (policy === 'low_confidence_answer') return 'Low confidence';
+  if (policy === 'no_answer') return 'No answer';
+  return policy || 'Unknown';
+}
+
 function formatScore(score?: number | null): string {
   return typeof score === 'number' ? score.toFixed(4) : '-';
 }
@@ -683,6 +690,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
                 命中 {message.metadata.debug_trace.retrieved_count} 个片段 · 最高相关度{' '}
                 {formatScore(message.metadata.debug_trace.max_score)} · Trace{' '}
                 {message.metadata.debug_trace.trace_id.slice(0, 8)}
+                {' '}· Policy {answerPolicyText(message.metadata.debug_trace.answer_policy)}
               </Text>
             )}
             {message.metadata.used_chunks.map((chunk, index) => (
@@ -712,6 +720,17 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
                     final {formatScore(chunk.final_score)}
                   </Text>
                 </div>
+                <Text style={{ display: 'block', color: '#8c8c8c', fontSize: 11 }}>
+                  type {chunk.chunk_type || 'normal'} / intent {chunk.query_intent || '-'} / section +
+                  {formatScore(chunk.section_boost)} -{formatScore(chunk.section_penalty)} / length -
+                  {formatScore(chunk.length_penalty)} / answer +
+                  {formatScore(chunk.answerability_bonus)}
+                </Text>
+                {chunk.ranking_reason && chunk.ranking_reason.length > 0 && (
+                  <Text style={{ display: 'block', color: '#8c8c8c', fontSize: 11 }}>
+                    reason: {chunk.ranking_reason.join(', ')}
+                  </Text>
+                )}
                 <Text style={{ color: '#595959', fontSize: 12, lineHeight: 1.6 }}>
                   {chunk.content_preview}
                 </Text>

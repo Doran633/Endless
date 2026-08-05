@@ -77,6 +77,21 @@ function confidenceText(confidence?: string): string {
   }
 }
 
+function answerPolicyText(policy?: string): string {
+  if (policy === 'grounded_answer') return 'Grounded';
+  if (policy === 'low_confidence_answer') return 'Low confidence';
+  if (policy === 'no_answer') return 'No answer';
+  return policy || 'Unknown';
+}
+
+function noAnswerReasonText(reason?: string | null): string {
+  if (reason === 'empty_retrieval') return 'empty retrieval';
+  if (reason === 'low_score') return 'low score';
+  if (reason === 'weak_chunks') return 'weak chunks';
+  if (reason === 'model_refusal') return 'model refusal';
+  return reason || '-';
+}
+
 function formatScore(score?: number | null): string {
   return typeof score === 'number' ? score.toFixed(4) : '-';
 }
@@ -819,6 +834,18 @@ export default function FileCenter() {
                     raw {formatScore(result.raw_score)} / bonus{' '}
                     {formatScore(result.keyword_bonus)} / final {formatScore(result.final_score)}
                   </Text>
+                  <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+                    type {result.chunk_type || 'normal'} / intent {result.query_intent || '-'} / section +
+                    {formatScore(result.section_boost)} -
+                    {formatScore(result.section_penalty)} / length -
+                    {formatScore(result.length_penalty)} / answer +
+                    {formatScore(result.answerability_bonus)}
+                  </Text>
+                  {result.ranking_reason && result.ranking_reason.length > 0 && (
+                    <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+                      reason: {result.ranking_reason.join(', ')}
+                    </Text>
+                  )}
                   {result.section_path && (
                     <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
                       Section: {result.section_path}
@@ -918,6 +945,10 @@ export default function FileCenter() {
                     {qaResult.debug_trace.output_tokens ?? '-'} · 无答案判断：
                     {qaResult.debug_trace.no_answer ? '是' : '否'}
                   </Text>
+                  <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+                    Answer policy: {answerPolicyText(qaResult.debug_trace.answer_policy)} · Reason:{' '}
+                    {noAnswerReasonText(qaResult.debug_trace.no_answer_reason)}
+                  </Text>
                 </div>
               )}
               {qaResult.used_chunks.map((chunk, index) => (
@@ -941,6 +972,17 @@ export default function FileCenter() {
                     raw {formatScore(chunk.raw_score)} / bonus {formatScore(chunk.keyword_bonus)} /
                     final {formatScore(chunk.final_score)}
                   </Text>
+                  <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+                    type {chunk.chunk_type || 'normal'} / intent {chunk.query_intent || '-'} / section +
+                    {formatScore(chunk.section_boost)} -{formatScore(chunk.section_penalty)} /
+                    length -{formatScore(chunk.length_penalty)} / answer +
+                    {formatScore(chunk.answerability_bonus)}
+                  </Text>
+                  {chunk.ranking_reason && chunk.ranking_reason.length > 0 && (
+                    <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+                      reason: {chunk.ranking_reason.join(', ')}
+                    </Text>
+                  )}
                   {chunk.section_path && (
                     <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
                       Section: {chunk.section_path}

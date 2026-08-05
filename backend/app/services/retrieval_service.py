@@ -12,6 +12,13 @@ from app.services.vector_store_service import VectorStoreService
 class RetrievalService:
     """Retrieve top-k chunks from a stored local vector index."""
 
+    capability_boost = 0.05
+    overview_summary_boost = 0.07
+    section_penalty_value = 0.04
+    answerability_bonus_value = 0.05
+    short_chunk_penalty_value = 0.06
+    short_chunk_char_limit = 80
+
     def __init__(
         self,
         embedding_provider: EmbeddingProvider | None = None,
@@ -32,9 +39,11 @@ class RetrievalService:
         if len(query_vector) != index.embedding_dimension:
             raise RetrievalError("Query vector dimension does not match stored vectors")
 
+        query_intent = self._classify_query_intent(normalized_query)
         query_keywords = self._extract_keywords(normalized_query)
         scored_results = [
-            self._score_item(query_vector, item, query_keywords) for item in index.items
+            self._score_item(query_vector, item, query_keywords, query_intent)
+            for item in index.items
         ]
         ranked_results = sorted(
             scored_results,
@@ -61,10 +70,43 @@ class RetrievalService:
         query_vector: list[float],
         item: VectorStoreItem,
         query_keywords: set[str],
+        query_intent: str,
     ) -> RetrievalResult:
         raw_score = round(self._cosine_similarity(query_vector, item.embedding), 6)
         keyword_bonus = self._keyword_bonus(item, query_keywords)
-        final_score = round(min(raw_score + keyword_bonus, 1.0), 6)
+        section_boost, section_penalty, section_reason = self._section_adjustment(
+            item, query_intent
+        )
+        length_penalty, length_reason = self._length_penalty(item)
+        answerability_bonus, answerability_reason = self._answerability_bonus(
+            item, query_intent
+        )
+        final_score = round(
+            min(
+                max(
+                    raw_score
+                    + keyword_bonus
+                    + section_boost
+                    + answerability_bonus
+                    - section_penalty
+                    - length_penalty,
+                    0,
+                ),
+                1.0,
+            ),
+            6,
+        )
+        ranking_reason = [
+            reason
+            for reason in [
+                f"intent:{query_intent}",
+                "keyword_bonus" if keyword_bonus > 0 else "",
+                section_reason,
+                length_reason,
+                answerability_reason,
+            ]
+            if reason
+        ]
 
         return RetrievalResult(
             chunk_id=item.chunk_id,
@@ -75,10 +117,17 @@ class RetrievalService:
             score=final_score,
             section_title=item.section_title,
             section_path=item.section_path,
+            chunk_type=item.chunk_type,
             raw_score=raw_score,
             keyword_bonus=keyword_bonus,
             final_score=final_score,
             relevance_level=self._relevance_level(final_score),
+            query_intent=query_intent,
+            section_boost=section_boost,
+            section_penalty=section_penalty,
+            length_penalty=length_penalty,
+            answerability_bonus=answerability_bonus,
+            ranking_reason=ranking_reason,
         )
 
     def _filter_results(self, ranked_results: list[RetrievalResult]) -> list[RetrievalResult]:
@@ -97,17 +146,198 @@ class RetrievalService:
         if not query_keywords or settings.rag_keyword_bonus_max <= 0:
             return 0
 
-        searchable = "\n".join(
-            value
-            for value in [item.section_path, item.section_title, item.content]
-            if value
-        ).lower()
+        searchable = self._item_search_text(item)
         matched_count = sum(1 for keyword in query_keywords if keyword in searchable)
         if matched_count == 0:
             return 0
 
         match_ratio = matched_count / len(query_keywords)
         return round(settings.rag_keyword_bonus_max * match_ratio, 6)
+
+    def _classify_query_intent(self, query: str) -> str:
+        normalized = query.lower()
+        if self._contains_any(
+            normalized,
+            [
+                "\u603b\u7ed3",
+                "\u6982\u89c8",
+                "\u8fdb\u5c55",
+                "\u73b0\u72b6",
+                "\u6838\u5fc3\u80fd\u529b",
+                "\u5b8c\u6210\u4e86\u54ea\u4e9b",
+                "\u6709\u54ea\u4e9b\u529f\u80fd",
+                "\u80fd\u505a\u4ec0\u4e48",
+                "\u53ef\u4ee5\u505a\u4ec0\u4e48",
+            ],
+        ):
+            return "overview"
+        if self._contains_any(
+            normalized,
+            [
+                "\u591a\u5c11",
+                "\u51e0\u4eba",
+                "\u4eba\u6570",
+                "\u6570\u91cf",
+                "\u4e0a\u9650",
+                "\u5927\u5c0f",
+                "\u591a\u5927",
+                "mb",
+                "gb",
+            ],
+        ):
+            return "quantity"
+        if self._contains_any(
+            normalized,
+            [
+                "\u9650\u5236",
+                "\u98ce\u9669",
+                "\u4e0d\u652f\u6301",
+                "\u7f3a\u9677",
+                "\u95ee\u9898",
+                "\u5931\u8d25",
+            ],
+        ):
+            return "limit"
+        if self._contains_any(
+            normalized,
+            [
+                "\u670d\u52a1\u5668",
+                "\u90e8\u7f72",
+                "\u914d\u7f6e",
+                "nginx",
+                "systemd",
+                "vps",
+                "sqlite",
+                "https",
+                "\u57df\u540d",
+            ],
+        ):
+            return "deployment"
+        if self._contains_any(
+            normalized,
+            [
+                "\u600e\u4e48",
+                "\u5982\u4f55",
+                "\u6d41\u7a0b",
+                "\u6b65\u9aa4",
+                "\u4f7f\u7528",
+                "\u64cd\u4f5c",
+                "\u4e0a\u4f20\u540e",
+            ],
+        ):
+            return "usage"
+        if self._contains_any(
+            normalized,
+            [
+                "\u529f\u80fd",
+                "\u80fd\u529b",
+                "\u6838\u5fc3",
+                "\u5b8c\u6210",
+                "\u652f\u6301",
+                "\u53ef\u4ee5",
+                "\u6587\u4ef6\u7c7b\u578b",
+                "\u4e0a\u4f20",
+                "\u80fd\u505a",
+            ],
+        ):
+            return "capability"
+        return "general"
+
+    def _section_adjustment(
+        self, item: VectorStoreItem, query_intent: str
+    ) -> tuple[float, float, str]:
+        section = self._item_section_text(item)
+        boost = 0.0
+        penalty = 0.0
+        reasons: list[str] = []
+
+        if query_intent in {"capability", "quantity", "usage"} and self._contains_any(
+            section,
+            [
+                "\u5df2\u5b8c\u6210\u529f\u80fd",
+                "\u529f\u80fd",
+                "\u6587\u4ef6\u4e0a\u4f20",
+                "\u81ea\u52a8\u5904\u7406",
+                "\u666e\u901a ai \u804a\u5929",
+                "\u5355\u6587\u4ef6 rag",
+            ],
+        ):
+            boost = self.capability_boost
+            reasons.append("section_boost:capability")
+
+        if query_intent == "overview" and item.chunk_type == "section_summary":
+            boost = max(boost, self.overview_summary_boost)
+            reasons.append("section_boost:overview_summary")
+
+        if query_intent == "overview" and self._contains_any(
+            section,
+            [
+                "\u5df2\u5b8c\u6210\u529f\u80fd",
+                "\u529f\u80fd",
+                "\u9879\u76ee\u80cc\u666f",
+                "\u8bd5\u8fd0\u884c\u8303\u56f4",
+            ],
+        ):
+            boost = max(boost, self.capability_boost)
+            reasons.append("section_boost:overview_section")
+
+        if query_intent == "limit" and self._contains_any(
+            section, ["\u9650\u5236", "\u98ce\u9669", "\u4e0d\u652f\u6301"]
+        ):
+            boost = self.capability_boost
+            reasons.append("section_boost:limit")
+
+        if query_intent == "deployment" and self._contains_any(
+            section, ["\u914d\u7f6e", "\u90e8\u7f72", "\u670d\u52a1\u5668", "vps", "nginx"]
+        ):
+            boost = self.capability_boost
+            reasons.append("section_boost:deployment")
+
+        noisy_for_intent = {
+            "capability": ["\u5f53\u524d\u914d\u7f6e", "rag \u8d28\u91cf", "\u9650\u5236", "\u98ce\u9669"],
+            "quantity": ["rag \u8d28\u91cf", "\u5f53\u524d\u914d\u7f6e"],
+            "usage": ["rag \u8d28\u91cf", "\u5f53\u524d\u914d\u7f6e"],
+            "deployment": ["rag \u8d28\u91cf"],
+            "overview": ["\u5f53\u524d\u914d\u7f6e", "rag \u8d28\u91cf", "\u9650\u5236", "\u98ce\u9669"],
+        }
+        if self._contains_any(section, noisy_for_intent.get(query_intent, [])):
+            penalty = self.section_penalty_value
+            reasons.append("section_penalty:noise")
+
+        return round(boost, 6), round(penalty, 6), ";".join(reasons)
+
+    def _length_penalty(self, item: VectorStoreItem) -> tuple[float, str]:
+        if item.char_count >= self.short_chunk_char_limit:
+            return 0.0, ""
+
+        content = item.content.strip()
+        if "\n" not in content and not self._contains_any(content, ["\u3002", ".", "\uff1a", ":"]):
+            return self.short_chunk_penalty_value, "length_penalty:short_title_like"
+
+        return round(self.short_chunk_penalty_value / 2, 6), "length_penalty:short_chunk"
+
+    def _answerability_bonus(self, item: VectorStoreItem, query_intent: str) -> tuple[float, str]:
+        if query_intent != "quantity":
+            return 0.0, ""
+
+        searchable = self._item_search_text(item)
+        if re.search(r"\d+\s*(mb|gb|kb|m|g|\u4eba|\u4e2a|\u6b21|\u6761)?", searchable, re.I):
+            return self.answerability_bonus_value, "answerability_bonus:number_or_unit"
+        return 0.0, ""
+
+    def _contains_any(self, text: str, candidates: list[str]) -> bool:
+        lowered = text.lower()
+        return any(candidate.lower() in lowered for candidate in candidates)
+
+    def _item_section_text(self, item: VectorStoreItem) -> str:
+        return " ".join(value for value in [item.section_path, item.section_title] if value).lower()
+
+    def _item_search_text(self, item: VectorStoreItem) -> str:
+        return "\n".join(
+            value
+            for value in [item.section_path, item.section_title, item.content]
+            if value
+        ).lower()
 
     def _extract_keywords(self, query: str) -> set[str]:
         normalized = query.lower()
@@ -129,16 +359,16 @@ class RetrievalService:
 
     def _stop_keywords(self) -> set[str]:
         return {
-            "什么",
-            "多少",
-            "哪些",
-            "如何",
-            "是否",
-            "一个",
-            "这个",
-            "那个",
-            "目前",
-            "当前",
+            "\u4ec0\u4e48",
+            "\u591a\u5c11",
+            "\u54ea\u4e9b",
+            "\u5982\u4f55",
+            "\u662f\u5426",
+            "\u4e00\u4e2a",
+            "\u8fd9\u4e2a",
+            "\u90a3\u4e2a",
+            "\u76ee\u524d",
+            "\u5f53\u524d",
         }
 
     def _relevance_level(self, score: float) -> str:

@@ -65,6 +65,7 @@ class DocumentChunk(BaseModel):
     char_count: int
     section_title: str | None = None
     section_path: str | None = None
+    chunk_type: str = "normal"
 
 
 class ChunkFileResponse(BaseModel):
@@ -105,6 +106,7 @@ class VectorStoreItem(BaseModel):
     char_count: int
     section_title: str | None = None
     section_path: str | None = None
+    chunk_type: str = "normal"
     embedding: list[float]
 
 
@@ -143,10 +145,17 @@ class RetrievalResult(BaseModel):
     score: float
     section_title: str | None = None
     section_path: str | None = None
+    chunk_type: str = "normal"
     raw_score: float | None = None
     keyword_bonus: float = 0
     final_score: float | None = None
     relevance_level: str = "medium"
+    query_intent: str = "general"
+    section_boost: float = 0
+    section_penalty: float = 0
+    length_penalty: float = 0
+    answerability_bonus: float = 0
+    ranking_reason: list[str] = Field(default_factory=list)
 
 
 class RetrieveFileResponse(BaseModel):
@@ -181,6 +190,8 @@ class RagDebugTrace(BaseModel):
     output_tokens: int | None = None
     confidence: str
     no_answer: bool
+    answer_policy: str = "grounded_answer"
+    no_answer_reason: str | None = None
 
 
 class AskFileResponse(BaseModel):
@@ -194,3 +205,5 @@ class AskFileResponse(BaseModel):
     model: str
     usage: dict[str, int | None]
     debug_trace: RagDebugTrace | None = None
+    answer_policy: str = "grounded_answer"
+    no_answer_reason: str | None = None

@@ -326,6 +326,8 @@ class ConversationService:
             "output_tokens": trace.output_tokens,
             "confidence": trace.confidence,
             "no_answer": trace.no_answer,
+            "answer_policy": trace.answer_policy,
+            "no_answer_reason": trace.no_answer_reason,
         }
 
     def _chunk_to_metadata(self, chunk: RetrievalResult) -> dict[str, object]:
@@ -337,10 +339,17 @@ class ConversationService:
             "score": chunk.score,
             "section_title": chunk.section_title,
             "section_path": chunk.section_path,
+            "chunk_type": chunk.chunk_type,
             "raw_score": chunk.raw_score,
             "keyword_bonus": chunk.keyword_bonus,
             "final_score": chunk.final_score,
             "relevance_level": chunk.relevance_level,
+            "query_intent": chunk.query_intent,
+            "section_boost": chunk.section_boost,
+            "section_penalty": chunk.section_penalty,
+            "length_penalty": chunk.length_penalty,
+            "answerability_bonus": chunk.answerability_bonus,
+            "ranking_reason": chunk.ranking_reason,
         }
 
     def _dump_metadata(self, metadata: dict[str, object] | None) -> str | None:
