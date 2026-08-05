@@ -81,6 +81,20 @@ function formatScore(score?: number | null): string {
   return typeof score === 'number' ? score.toFixed(4) : '-';
 }
 
+function relevanceColor(level?: string): string {
+  if (level === 'high') return 'green';
+  if (level === 'medium') return 'blue';
+  if (level === 'weak') return 'orange';
+  return 'default';
+}
+
+function relevanceText(level?: string): string {
+  if (level === 'high') return 'High';
+  if (level === 'medium') return 'Medium';
+  if (level === 'weak') return 'Weak';
+  return 'Unknown';
+}
+
 function FileIcon({ ext }: { ext: string }) {
   const style = { fontSize: 22 };
   switch (ext.toLowerCase()) {
@@ -798,6 +812,18 @@ export default function FileCenter() {
                     Top {index + 1} · Chunk {result.chunk_index + 1} · score{' '}
                     {result.score.toFixed(6)} · {result.char_count} 字符
                   </Text>
+                  <Tag color={relevanceColor(result.relevance_level)} style={{ marginLeft: 8 }}>
+                    {relevanceText(result.relevance_level)}
+                  </Tag>
+                  <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+                    raw {formatScore(result.raw_score)} / bonus{' '}
+                    {formatScore(result.keyword_bonus)} / final {formatScore(result.final_score)}
+                  </Text>
+                  {result.section_path && (
+                    <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+                      Section: {result.section_path}
+                    </Text>
+                  )}
                   <Input.TextArea
                     value={result.content}
                     readOnly
@@ -908,6 +934,18 @@ export default function FileCenter() {
                     参考片段 {index + 1} · Chunk {chunk.chunk_index + 1} · 相关度{' '}
                     {chunk.score.toFixed(4)}
                   </Text>
+                  <Tag color={relevanceColor(chunk.relevance_level)} style={{ marginLeft: 8 }}>
+                    {relevanceText(chunk.relevance_level)}
+                  </Tag>
+                  <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+                    raw {formatScore(chunk.raw_score)} / bonus {formatScore(chunk.keyword_bonus)} /
+                    final {formatScore(chunk.final_score)}
+                  </Text>
+                  {chunk.section_path && (
+                    <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+                      Section: {chunk.section_path}
+                    </Text>
+                  )}
                   <Input.TextArea
                     value={chunk.content}
                     readOnly

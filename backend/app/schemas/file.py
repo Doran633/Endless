@@ -63,6 +63,8 @@ class DocumentChunk(BaseModel):
     chunk_index: int
     content: str
     char_count: int
+    section_title: str | None = None
+    section_path: str | None = None
 
 
 class ChunkFileResponse(BaseModel):
@@ -101,6 +103,8 @@ class VectorStoreItem(BaseModel):
     chunk_index: int
     content: str
     char_count: int
+    section_title: str | None = None
+    section_path: str | None = None
     embedding: list[float]
 
 
@@ -137,6 +141,12 @@ class RetrievalResult(BaseModel):
     content: str
     char_count: int
     score: float
+    section_title: str | None = None
+    section_path: str | None = None
+    raw_score: float | None = None
+    keyword_bonus: float = 0
+    final_score: float | None = None
+    relevance_level: str = "medium"
 
 
 class RetrieveFileResponse(BaseModel):

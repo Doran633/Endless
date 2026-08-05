@@ -53,6 +53,9 @@ class Settings:
     chunk_size: int = int(os.getenv("CHUNK_SIZE", "800"))
     chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "120"))
     rag_default_top_k: int = int(os.getenv("RAG_DEFAULT_TOP_K", "3"))
+    rag_score_threshold: float = float(os.getenv("RAG_SCORE_THRESHOLD", "0"))
+    rag_relative_score_gap: float = float(os.getenv("RAG_RELATIVE_SCORE_GAP", "0.20"))
+    rag_keyword_bonus_max: float = float(os.getenv("RAG_KEYWORD_BONUS_MAX", "0.04"))
     log_level: str = os.getenv("LOG_LEVEL", "INFO").upper()
     log_to_file: bool = os.getenv("LOG_TO_FILE", "false").strip().lower() in {
         "1",

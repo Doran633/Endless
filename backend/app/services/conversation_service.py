@@ -335,6 +335,12 @@ class ConversationService:
             "content": chunk.content,
             "char_count": chunk.char_count,
             "score": chunk.score,
+            "section_title": chunk.section_title,
+            "section_path": chunk.section_path,
+            "raw_score": chunk.raw_score,
+            "keyword_bonus": chunk.keyword_bonus,
+            "final_score": chunk.final_score,
+            "relevance_level": chunk.relevance_level,
         }
 
     def _dump_metadata(self, metadata: dict[str, object] | None) -> str | None:

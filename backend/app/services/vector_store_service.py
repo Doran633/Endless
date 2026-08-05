@@ -43,6 +43,8 @@ class VectorStoreService:
                     chunk_index=chunk.chunk_index,
                     content=chunk.content,
                     char_count=chunk.char_count,
+                    section_title=chunk.section_title,
+                    section_path=chunk.section_path,
                     embedding=vectors[index],
                 )
                 for index, chunk in enumerate(chunks)

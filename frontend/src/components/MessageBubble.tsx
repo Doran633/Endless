@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Typography, Space, Tooltip, message } from 'antd';
+import { Typography, Space, Tooltip, message, Tag } from 'antd';
 import {
   UserOutlined,
   RobotOutlined,
@@ -34,6 +34,20 @@ function confidenceText(confidence?: string): string {
 
 function formatScore(score?: number | null): string {
   return typeof score === 'number' ? score.toFixed(4) : '-';
+}
+
+function relevanceColor(level?: string): string {
+  if (level === 'high') return 'green';
+  if (level === 'medium') return 'blue';
+  if (level === 'weak') return 'orange';
+  return 'default';
+}
+
+function relevanceText(level?: string): string {
+  if (level === 'high') return 'High';
+  if (level === 'medium') return 'Medium';
+  if (level === 'weak') return 'Weak';
+  return 'Unknown';
 }
 
 // ============================
@@ -684,6 +698,20 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
                   片段 {index + 1} · Chunk {chunk.chunk_index + 1} · 相关度{' '}
                   {chunk.score.toFixed(4)}
                 </Text>
+                {chunk.section_path && (
+                  <Text style={{ display: 'block', color: '#8c8c8c', fontSize: 11 }}>
+                    Section: {chunk.section_path}
+                  </Text>
+                )}
+                <div style={{ marginTop: 4 }}>
+                  <Tag color={relevanceColor(chunk.relevance_level)}>
+                    {relevanceText(chunk.relevance_level)}
+                  </Tag>
+                  <Text style={{ color: '#8c8c8c', fontSize: 11 }}>
+                    raw {formatScore(chunk.raw_score)} / bonus {formatScore(chunk.keyword_bonus)} /
+                    final {formatScore(chunk.final_score)}
+                  </Text>
+                </div>
                 <Text style={{ color: '#595959', fontSize: 12, lineHeight: 1.6 }}>
                   {chunk.content_preview}
                 </Text>

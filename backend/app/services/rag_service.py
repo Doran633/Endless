@@ -135,11 +135,17 @@ class RagService:
     ) -> str:
         context_blocks = []
         for index, chunk in enumerate(chunks, start=1):
+            section_label = (
+                f" | section={chunk.section_path}" if chunk.section_path else ""
+            )
             # Keep the prompt format explicit so early RAG behavior is easy to inspect.
             context_blocks.append(
                 "\n".join(
                     [
-                        f"[Chunk {index} | chunk_index={chunk.chunk_index} | score={chunk.score}]",
+                        (
+                            f"[Chunk {index} | chunk_index={chunk.chunk_index} "
+                            f"| score={chunk.score}{section_label}]"
+                        ),
                         chunk.content,
                     ]
                 )

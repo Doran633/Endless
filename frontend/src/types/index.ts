@@ -37,6 +37,12 @@ export interface ChatMessageMetadata {
     content?: string;
     content_preview?: string;
     char_count?: number;
+    section_title?: string | null;
+    section_path?: string | null;
+    raw_score?: number | null;
+    keyword_bonus?: number;
+    final_score?: number | null;
+    relevance_level?: 'high' | 'medium' | 'weak' | string;
   }[];
   cards?: MessageCard[];
 }
@@ -77,6 +83,12 @@ export interface Message {
       score: number;
       content_preview: string;
       char_count?: number;
+      section_title?: string | null;
+      section_path?: string | null;
+      raw_score?: number | null;
+      keyword_bonus?: number;
+      final_score?: number | null;
+      relevance_level?: 'high' | 'medium' | 'weak' | string;
     }[];
     cards?: MessageCard[];
   };
@@ -89,6 +101,12 @@ export interface DocumentChunk {
   chunk_index: number;
   content: string;
   char_count: number;
+  section_title?: string | null;
+  section_path?: string | null;
+  raw_score?: number | null;
+  keyword_bonus?: number;
+  final_score?: number | null;
+  relevance_level?: 'high' | 'medium' | 'weak' | string;
 }
 
 export interface EmbeddingPreview {
@@ -103,6 +121,12 @@ export interface RetrievalResult {
   content: string;
   char_count: number;
   score: number;
+  section_title?: string | null;
+  section_path?: string | null;
+  raw_score?: number | null;
+  keyword_bonus?: number;
+  final_score?: number | null;
+  relevance_level?: 'high' | 'medium' | 'weak' | string;
 }
 
 export interface RetrieveFileResponse {
