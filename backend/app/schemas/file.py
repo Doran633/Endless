@@ -155,6 +155,9 @@ class RetrievalResult(BaseModel):
     section_penalty: float = 0
     length_penalty: float = 0
     answerability_bonus: float = 0
+    evidence_score: float = 0
+    evidence_level: str = "medium"
+    evidence_reason: list[str] = Field(default_factory=list)
     ranking_reason: list[str] = Field(default_factory=list)
 
 

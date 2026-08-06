@@ -110,6 +110,20 @@ function relevanceText(level?: string): string {
   return 'Unknown';
 }
 
+function evidenceColor(level?: string): string {
+  if (level === 'strong') return 'green';
+  if (level === 'medium') return 'blue';
+  if (level === 'weak') return 'orange';
+  return 'default';
+}
+
+function evidenceText(level?: string): string {
+  if (level === 'strong') return 'Strong evidence';
+  if (level === 'medium') return 'Medium evidence';
+  if (level === 'weak') return 'Weak evidence';
+  return 'Unknown evidence';
+}
+
 function FileIcon({ ext }: { ext: string }) {
   const style = { fontSize: 22 };
   switch (ext.toLowerCase()) {
@@ -830,6 +844,9 @@ export default function FileCenter() {
                   <Tag color={relevanceColor(result.relevance_level)} style={{ marginLeft: 8 }}>
                     {relevanceText(result.relevance_level)}
                   </Tag>
+                  <Tag color={evidenceColor(result.evidence_level)} style={{ marginLeft: 8 }}>
+                    {evidenceText(result.evidence_level)}
+                  </Tag>
                   <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
                     raw {formatScore(result.raw_score)} / bonus{' '}
                     {formatScore(result.keyword_bonus)} / final {formatScore(result.final_score)}
@@ -840,6 +857,10 @@ export default function FileCenter() {
                     {formatScore(result.section_penalty)} / length -
                     {formatScore(result.length_penalty)} / answer +
                     {formatScore(result.answerability_bonus)}
+                  </Text>
+                  <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+                    evidence {formatScore(result.evidence_score)} /{' '}
+                    {(result.evidence_reason || []).join(', ') || '-'}
                   </Text>
                   {result.ranking_reason && result.ranking_reason.length > 0 && (
                     <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
@@ -968,6 +989,9 @@ export default function FileCenter() {
                   <Tag color={relevanceColor(chunk.relevance_level)} style={{ marginLeft: 8 }}>
                     {relevanceText(chunk.relevance_level)}
                   </Tag>
+                  <Tag color={evidenceColor(chunk.evidence_level)} style={{ marginLeft: 8 }}>
+                    {evidenceText(chunk.evidence_level)}
+                  </Tag>
                   <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
                     raw {formatScore(chunk.raw_score)} / bonus {formatScore(chunk.keyword_bonus)} /
                     final {formatScore(chunk.final_score)}
@@ -977,6 +1001,10 @@ export default function FileCenter() {
                     {formatScore(chunk.section_boost)} -{formatScore(chunk.section_penalty)} /
                     length -{formatScore(chunk.length_penalty)} / answer +
                     {formatScore(chunk.answerability_bonus)}
+                  </Text>
+                  <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>
+                    evidence {formatScore(chunk.evidence_score)} /{' '}
+                    {(chunk.evidence_reason || []).join(', ') || '-'}
                   </Text>
                   {chunk.ranking_reason && chunk.ranking_reason.length > 0 && (
                     <Text type="secondary" style={{ display: 'block', marginTop: 4 }}>

@@ -349,6 +349,9 @@ class ConversationService:
             "section_penalty": chunk.section_penalty,
             "length_penalty": chunk.length_penalty,
             "answerability_bonus": chunk.answerability_bonus,
+            "evidence_score": chunk.evidence_score,
+            "evidence_level": chunk.evidence_level,
+            "evidence_reason": chunk.evidence_reason,
             "ranking_reason": chunk.ranking_reason,
         }
 

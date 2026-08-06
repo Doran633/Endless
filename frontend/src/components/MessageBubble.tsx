@@ -57,6 +57,20 @@ function relevanceText(level?: string): string {
   return 'Unknown';
 }
 
+function evidenceColor(level?: string): string {
+  if (level === 'strong') return 'green';
+  if (level === 'medium') return 'blue';
+  if (level === 'weak') return 'orange';
+  return 'default';
+}
+
+function evidenceText(level?: string): string {
+  if (level === 'strong') return 'Strong evidence';
+  if (level === 'medium') return 'Medium evidence';
+  if (level === 'weak') return 'Weak evidence';
+  return 'Unknown evidence';
+}
+
 // ============================
 // Card renderers
 // ============================
@@ -715,6 +729,9 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
                   <Tag color={relevanceColor(chunk.relevance_level)}>
                     {relevanceText(chunk.relevance_level)}
                   </Tag>
+                  <Tag color={evidenceColor(chunk.evidence_level)}>
+                    {evidenceText(chunk.evidence_level)}
+                  </Tag>
                   <Text style={{ color: '#8c8c8c', fontSize: 11 }}>
                     raw {formatScore(chunk.raw_score)} / bonus {formatScore(chunk.keyword_bonus)} /
                     final {formatScore(chunk.final_score)}
@@ -725,6 +742,10 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
                   {formatScore(chunk.section_boost)} -{formatScore(chunk.section_penalty)} / length -
                   {formatScore(chunk.length_penalty)} / answer +
                   {formatScore(chunk.answerability_bonus)}
+                </Text>
+                <Text style={{ display: 'block', color: '#8c8c8c', fontSize: 11 }}>
+                  evidence {formatScore(chunk.evidence_score)} /{' '}
+                  {(chunk.evidence_reason || []).join(', ') || '-'}
                 </Text>
                 {chunk.ranking_reason && chunk.ranking_reason.length > 0 && (
                   <Text style={{ display: 'block', color: '#8c8c8c', fontSize: 11 }}>

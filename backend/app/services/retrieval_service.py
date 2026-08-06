@@ -18,6 +18,12 @@ class RetrievalService:
     answerability_bonus_value = 0.05
     short_chunk_penalty_value = 0.06
     short_chunk_char_limit = 80
+    evidence_fact_bonus_value = 0.03
+    evidence_body_bonus_value = 0.02
+    evidence_summary_bonus_value = 0.03
+    evidence_title_penalty_value = 0.10
+    evidence_thin_penalty_value = 0.04
+    evidence_noise_penalty_value = 0.04
 
     def __init__(
         self,
@@ -81,6 +87,9 @@ class RetrievalService:
         answerability_bonus, answerability_reason = self._answerability_bonus(
             item, query_intent
         )
+        evidence_score, evidence_level, evidence_reason = self._evidence_adjustment(
+            item, query_intent
+        )
         final_score = round(
             min(
                 max(
@@ -88,6 +97,7 @@ class RetrievalService:
                     + keyword_bonus
                     + section_boost
                     + answerability_bonus
+                    + evidence_score
                     - section_penalty
                     - length_penalty,
                     0,
@@ -104,6 +114,7 @@ class RetrievalService:
                 section_reason,
                 length_reason,
                 answerability_reason,
+                ";".join(evidence_reason),
             ]
             if reason
         ]
@@ -127,6 +138,9 @@ class RetrievalService:
             section_penalty=section_penalty,
             length_penalty=length_penalty,
             answerability_bonus=answerability_bonus,
+            evidence_score=evidence_score,
+            evidence_level=evidence_level,
+            evidence_reason=evidence_reason,
             ranking_reason=ranking_reason,
         )
 
@@ -324,6 +338,112 @@ class RetrievalService:
         if re.search(r"\d+\s*(mb|gb|kb|m|g|\u4eba|\u4e2a|\u6b21|\u6761)?", searchable, re.I):
             return self.answerability_bonus_value, "answerability_bonus:number_or_unit"
         return 0.0, ""
+
+    def _evidence_adjustment(
+        self, item: VectorStoreItem, query_intent: str
+    ) -> tuple[float, str, list[str]]:
+        score = 0.0
+        reasons: list[str] = []
+        searchable = self._item_search_text(item)
+
+        if self._is_title_only_chunk(item):
+            score -= self.evidence_title_penalty_value
+            reasons.append("evidence_penalty:title_only")
+
+        if item.chunk_type == "section_summary" and query_intent == "overview":
+            score += self.evidence_summary_bonus_value
+            reasons.append("evidence_bonus:overview_summary")
+
+        if item.char_count >= self.short_chunk_char_limit and item.chunk_type == "normal":
+            score += self.evidence_body_bonus_value
+            reasons.append("evidence_bonus:body_length")
+
+        if self._has_explicit_fact(searchable):
+            score += self.evidence_fact_bonus_value
+            reasons.append("evidence_bonus:explicit_fact")
+
+        if not self._has_explanatory_signal(item.content) and item.chunk_type != "section_summary":
+            score -= self.evidence_thin_penalty_value
+            reasons.append("evidence_penalty:thin_content")
+
+        if self._is_noise_for_intent(searchable, query_intent):
+            score -= self.evidence_noise_penalty_value
+            reasons.append("evidence_penalty:intent_noise")
+
+        rounded_score = round(score, 6)
+        return rounded_score, self._evidence_level(item, rounded_score), reasons
+
+    def _is_title_only_chunk(self, item: VectorStoreItem) -> bool:
+        content = item.content.strip()
+        if item.chunk_type == "section_summary":
+            return False
+        if item.char_count > 60:
+            return False
+        if "\n" in content:
+            return False
+        if self._has_explicit_fact(content):
+            return False
+        if self._has_explanatory_signal(content):
+            return False
+        return True
+
+    def _has_explicit_fact(self, text: str) -> bool:
+        normalized = text.lower()
+        return bool(
+            re.search(r"\d+\s*(mb|gb|kb|m|g|\u4eba|\u4e2a|\u6b21|\u6761)?", normalized, re.I)
+            or self._contains_any(
+                normalized,
+                [
+                    "txt",
+                    "docx",
+                    "pdf",
+                    "sqlite",
+                    "nginx",
+                    "fastapi",
+                    "vps",
+                    "embedding",
+                    "vectorstore",
+                    "rag",
+                    "\u652f\u6301",
+                    "\u4e0d\u652f\u6301",
+                    "\u53ef\u4ee5",
+                    "\u6682\u4e0d",
+                    "\u5df2\u5b8c\u6210",
+                    "\u4e0a\u9650",
+                    "\u4e0a\u4f20",
+                    "\u89e3\u6790",
+                    "\u5207\u5757",
+                    "\u5411\u91cf",
+                    "\u7d22\u5f15",
+                    "\u90e8\u7f72",
+                    "\u4fdd\u5b58",
+                ],
+            )
+        )
+
+    def _has_explanatory_signal(self, text: str) -> bool:
+        return self._contains_any(
+            text,
+            ["\u3002", "\uff1a", ":", "\uff1b", ";", "\uff0c", ",", "\n", "-", "|"],
+        )
+
+    def _is_noise_for_intent(self, text: str, query_intent: str) -> bool:
+        if query_intent != "deployment" and self._contains_any(
+            text, ["\u5f53\u524d\u914d\u7f6e", "\u670d\u52a1\u5668 |", "\u78c1\u76d8 |"]
+        ):
+            return True
+        if query_intent not in {"general", "overview"} and self._contains_any(
+            text, ["rag \u8d28\u91cf\u89c2\u5bdf\u6307\u6807", "retrieval hit rate", "citation precision"]
+        ):
+            return True
+        return False
+
+    def _evidence_level(self, item: VectorStoreItem, evidence_score: float) -> str:
+        if self._is_title_only_chunk(item) or evidence_score < -0.03:
+            return "weak"
+        if evidence_score >= 0.04:
+            return "strong"
+        return "medium"
 
     def _contains_any(self, text: str, candidates: list[str]) -> bool:
         lowered = text.lower()

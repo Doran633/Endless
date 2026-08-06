@@ -49,6 +49,9 @@ export interface ChatMessageMetadata {
     section_penalty?: number;
     length_penalty?: number;
     answerability_bonus?: number;
+    evidence_score?: number;
+    evidence_level?: 'strong' | 'medium' | 'weak' | string;
+    evidence_reason?: string[];
     ranking_reason?: string[];
   }[];
   cards?: MessageCard[];
@@ -102,6 +105,9 @@ export interface Message {
       section_penalty?: number;
       length_penalty?: number;
       answerability_bonus?: number;
+      evidence_score?: number;
+      evidence_level?: 'strong' | 'medium' | 'weak' | string;
+      evidence_reason?: string[];
       ranking_reason?: string[];
     }[];
     cards?: MessageCard[];
@@ -127,6 +133,9 @@ export interface DocumentChunk {
   section_penalty?: number;
   length_penalty?: number;
   answerability_bonus?: number;
+  evidence_score?: number;
+  evidence_level?: 'strong' | 'medium' | 'weak' | string;
+  evidence_reason?: string[];
   ranking_reason?: string[];
 }
 
@@ -154,6 +163,9 @@ export interface RetrievalResult {
   section_penalty?: number;
   length_penalty?: number;
   answerability_bonus?: number;
+  evidence_score?: number;
+  evidence_level?: 'strong' | 'medium' | 'weak' | string;
+  evidence_reason?: string[];
   ranking_reason?: string[];
 }
 

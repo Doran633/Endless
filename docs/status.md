@@ -4,7 +4,7 @@
 
 ## 1. 当前版本
 
-当前阶段：v1.8.7 RAG Prompt Strictness and No-answer Policy。
+当前阶段：v1.8.8 Evidence-aware Retrieval。
 
 项目定位：北辰agent 是一个面向小范围可信试用的独立网页版 AI 助手 MVP，核心能力包括普通聊天、文件上传、文档解析、单文件 RAG 问答、会话持久化、匿名用户隔离、邀请码访问保护和基础部署运维。
 
@@ -67,9 +67,11 @@
 - short chunk length penalty。
 - 数值型问题 answerability bonus。
 - RetrievalResult 返回 raw_score、keyword_bonus、final_score、relevance_level、query_intent 和 ranking_reason。
+- RetrievalResult 返回 evidence_score、evidence_level 和 evidence_reason，用于区分“语义相关”和“可作为证据”。
+- 检索排序已纳入 evidence-aware scoring，对 title-only chunk、过短片段和意图噪声片段进行降权。
 - 单文件 RAG 问答。
 - RAG 连续追问使用当前会话短上下文。
-- RAG prompt 已要求模型只基于检索片段回答。
+- RAG prompt 已要求模型只基于检索片段回答，并优先使用 strong / medium evidence chunks。
 - answer_policy 支持 grounded_answer、low_confidence_answer、no_answer。
 - no_answer_reason 支持 empty_retrieval、low_score、weak_chunks、model_refusal。
 - RAG debug trace 返回 trace_id、score 摘要、token、confidence、no_answer 和 answer_policy。
@@ -193,7 +195,7 @@ SQLite、uploads 和 vector_store 是当前核心运行时数据。部署更新�
 
 优先级建议：
 
-1. 使用固定测试文档重新索引并测评 v1.8.7 的 No-answer Accuracy 和 Citation Score。
-2. 对比 v1.8.2 到 v1.8.7 的 Top-1 Accuracy、Citation Score 和噪声片段比例。
+1. 使用固定测试文档重新索引并测评 v1.8.8 的 Citation Score、Top-1 Accuracy 和噪声片段比例。
+2. 针对更复杂长文档准备新的 RAG 测试集，覆盖标题噪声、配置噪声、限制类事实和无答案问题。
 3. 备案通过后配置域名、HTTPS 和正式 Nginx server_name。
-4. RAG 质量稳定后，再规划正式账号密码登录系统。
+4. 单文件 RAG 质量稳定后，再规划 Hybrid Retrieval、多文件 RAG 或正式账号密码登录系统。

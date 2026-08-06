@@ -70,3 +70,15 @@ def test_no_answer_response_does_not_call_llm() -> None:
     assert response.debug_trace.no_answer is True
     assert response.usage["input_tokens"] == 0
     assert response.usage["output_tokens"] == 0
+
+
+def test_select_evidence_chunks_filters_weak_evidence() -> None:
+    service = RagService()
+    weak = make_result(0.70, "high")
+    weak.evidence_level = "weak"
+    medium = make_result(0.62, "medium")
+    medium.evidence_level = "medium"
+
+    selected = service._select_evidence_chunks([weak, medium])
+
+    assert selected == [medium]

@@ -101,6 +101,46 @@ def test_short_title_like_chunks_receive_length_penalty() -> None:
     assert reason == "length_penalty:short_title_like"
 
 
+def test_title_only_chunks_receive_weak_evidence_penalty() -> None:
+    service = RetrievalService()
+    item = VectorStoreItem(
+        chunk_id="file-1-0",
+        file_id="file-1",
+        chunk_index=0,
+        content="\u5317\u8fb0agent \u5c0f\u8303\u56f4\u4e0a\u7ebf\u8bd5\u8fd0\u884c\u8ba1\u5212",
+        char_count=24,
+        section_title=None,
+        section_path=None,
+        embedding=[1.0, 0.0],
+    )
+
+    score, level, reason = service._evidence_adjustment(item, "overview")
+
+    assert score < 0
+    assert level == "weak"
+    assert "evidence_penalty:title_only" in reason
+
+
+def test_fact_chunks_receive_strong_evidence_bonus() -> None:
+    service = RetrievalService()
+    item = VectorStoreItem(
+        chunk_id="file-1-0",
+        file_id="file-1",
+        chunk_index=0,
+        content="\u7528\u6237\u53ef\u4ee5\u4e0a\u4f20 TXT\u3001DOCX\u3001\u6587\u672c\u578b PDF \u6587\u4ef6\u3002",
+        char_count=38,
+        section_title="\u6587\u4ef6\u4e0a\u4f20\u4e0e\u81ea\u52a8\u5904\u7406",
+        section_path="\u5f53\u524d\u5df2\u5b8c\u6210\u529f\u80fd > \u6587\u4ef6\u4e0a\u4f20\u4e0e\u81ea\u52a8\u5904\u7406",
+        embedding=[1.0, 0.0],
+    )
+
+    score, level, reason = service._evidence_adjustment(item, "capability")
+
+    assert score > 0
+    assert level in {"strong", "medium"}
+    assert "evidence_bonus:explicit_fact" in reason
+
+
 def test_relative_score_gap_filters_weak_tail_results() -> None:
     service = RetrievalService()
     results = [

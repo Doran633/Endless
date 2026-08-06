@@ -47,19 +47,29 @@ class RagService:
                 reason="empty_retrieval",
             )
 
-        answer_policy, no_answer_reason = self._decide_answer_policy(retrieval.results)
-        if answer_policy == "no_answer":
+        evidence_chunks = self._select_evidence_chunks(retrieval.results)
+        if not evidence_chunks:
             return self._no_answer_response(
                 file_id=file_id,
                 query=normalized_query,
                 top_k=top_k,
                 chunks=retrieval.results,
+                reason="weak_evidence",
+            )
+
+        answer_policy, no_answer_reason = self._decide_answer_policy(evidence_chunks)
+        if answer_policy == "no_answer":
+            return self._no_answer_response(
+                file_id=file_id,
+                query=normalized_query,
+                top_k=top_k,
+                chunks=evidence_chunks,
                 reason=no_answer_reason or "low_score",
             )
 
         prompt = self._build_prompt(
             normalized_query,
-            retrieval.results,
+            evidence_chunks,
             conversation_context or [],
             answer_policy,
         )
@@ -84,7 +94,7 @@ class RagService:
             file_id=file_id,
             query=normalized_query,
             top_k=top_k,
-            chunks=retrieval.results,
+            chunks=evidence_chunks,
             model=response.model,
             input_tokens=response.input_tokens,
             output_tokens=response.output_tokens,
@@ -98,8 +108,8 @@ class RagService:
             query=normalized_query,
             answer=response.content,
             top_k=top_k,
-            used_chunk_count=len(retrieval.results),
-            used_chunks=retrieval.results,
+            used_chunk_count=len(evidence_chunks),
+            used_chunks=evidence_chunks,
             provider=settings.llm_provider,
             model=response.model,
             usage={
@@ -163,6 +173,9 @@ class RagService:
             return "low_confidence_answer", "low_score"
 
         return "grounded_answer", None
+
+    def _select_evidence_chunks(self, chunks: list[RetrievalResult]) -> list[RetrievalResult]:
+        return [chunk for chunk in chunks if chunk.evidence_level in {"strong", "medium"}]
 
     def _build_debug_trace(
         self,
