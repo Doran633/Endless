@@ -105,7 +105,10 @@ fi
 log "Pull latest code"
 run_as_app_user git fetch origin "$BRANCH"
 run_as_app_user git checkout "$BRANCH"
-run_as_app_user git pull --ff-only origin "$BRANCH"
+remote_commit="$(run_as_app_user git rev-parse --short "origin/$BRANCH")"
+echo "Remote commit:  $remote_commit"
+echo "Local commit:   $before_commit"
+run_as_app_user git merge --ff-only "origin/$BRANCH"
 after_commit="$(run_as_app_user git rev-parse --short HEAD)"
 echo "Updated commit: $before_commit -> $after_commit"
 

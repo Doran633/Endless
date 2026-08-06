@@ -268,7 +268,7 @@ Then update the application:
 
 ```bash
 cd /opt/beichen-agent/app
-sudo -u www-data git pull
+sudo -u www-data git pull --ff-only origin main
 
 cd backend
 sudo -u www-data /opt/beichen-agent/venv/bin/pip install -r requirements.txt
